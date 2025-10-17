@@ -65,3 +65,13 @@ export interface MediaDetails extends Omit<Media, 'genre_ids' | 'name'> {
   first_air_date?: string;
   seasons?: Season[];
 }
+
+export interface WatchProgress {
+  id: string;
+  mediaId: string;
+  mediaType: 'movie' | 'tv';
+  seasonNumber?: number;
+  episodeNumber?: number;
+  lastWatchedAt: any;
+  media?: MediaDetails;
+}

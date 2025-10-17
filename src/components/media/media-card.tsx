@@ -8,7 +8,7 @@ import { TMDB_IMAGE_URL } from "@/lib/config";
 import { Badge } from "@/components/ui/badge";
 
 interface MediaCardProps {
-  media: Media;
+  media: Media & { href?: string };
   mediaType: 'movie' | 'tv';
 }
 
@@ -21,7 +21,7 @@ export function MediaCard({ media, mediaType }: MediaCardProps) {
     ? `${TMDB_IMAGE_URL}${media.poster_path}`
     : `https://picsum.photos/seed/${media.id}/500/750`;
   
-  const href = `/${media.media_type || mediaType}/${media.id}`;
+  const href = media.href || `/${media.media_type || mediaType}/${media.id}`;
 
   return (
     <Link href={href}>

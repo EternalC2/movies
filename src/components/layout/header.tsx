@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Film, Home, Tv, Star, User, Clapperboard } from "lucide-react";
+import { Film, Home, Tv, Star, User, Clapperboard, History } from "lucide-react";
 import { SearchBar } from "@/components/search-bar";
 import { Button } from "@/components/ui/button";
 
@@ -10,6 +10,7 @@ const navItems = [
   { href: "/movies", label: "Films", icon: Film },
   { href: "/series", label: "Series", icon: Tv },
   { href: "/favorites", label: "Favorieten", icon: Star },
+  { href: "/continue-watching", label: "Verder Kijken", icon: History },
 ];
 
 export function Header() {

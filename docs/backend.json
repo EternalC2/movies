@@ -145,6 +145,50 @@
         "id",
         "name"
       ]
+    },
+    "WatchProgress": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "WatchProgress",
+      "type": "object",
+      "description": "Represents a user's watch progress for a specific media item.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the watch progress record (usually the media ID)."
+        },
+        "mediaId": {
+          "type": "string",
+          "description": "The ID of the movie or series."
+        },
+        "mediaType": {
+          "type": "string",
+          "enum": ["movie", "tv"],
+          "description": "The type of media."
+        },
+        "seasonNumber": {
+          "type": "number",
+          "description": "The season number for a TV series."
+        },
+        "episodeNumber": {
+          "type": "number",
+          "description": "The episode number for a TV series."
+        },
+        "lastWatchedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp of when the media was last watched."
+        },
+        "media": {
+          "$ref": "#/backend/entities/Media",
+          "description": "Denormalized media data for quick access."
+        }
+      },
+      "required": [
+        "id",
+        "mediaId",
+        "mediaType",
+        "lastWatchedAt"
+      ]
     }
   },
   "auth": {
@@ -212,6 +256,26 @@
         }
       },
       {
+        "path": "/users/{userId}/watchProgress/{mediaId}",
+        "definition": {
+          "entityName": "WatchProgress",
+          "schema": {
+            "$ref": "#/backend/entities/WatchProgress"
+          },
+          "description": "Stores the user's watch progress for movies and series. Each document is keyed by the media's TMDB ID. This subcollection is owned by the user.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user."
+            },
+            {
+              "name": "mediaId",
+              "description": "The TMDB ID of the movie or series."
+            }
+          ]
+        }
+      },
+      {
         "path": "/movies/{movieId}",
         "definition": {
           "entityName": "Movie",
@@ -260,6 +324,6 @@
         }
       }
     ],
-    "reasoning": "The Firestore structure is designed to ensure security, scalability, and ease of debugging, following the principles of Authorization Independence, Clarity of Intent, and DBAC. It leverages denormalization and structural segregation to optimize security rules and query performance.\\n\\nAuthorization Independence is achieved by avoiding `get()` calls in security rules. User-specific data (favorites) are stored under the `/users/{userId}` path, which eliminates the need to fetch parent document data to authorize access.  Movies and Series collections are globally accessible for reading but restricted for modification, ensuring that only authorized services can update them.\\n\\nThe structure supports QAPs through structural segregation. Movies and series data are separated into distinct collections.  User-specific favorite movies and series are stored within the user's document. This separation enables secure list operations, preventing unauthorized access to user data or modification of movies and series data.\\n\\nThe design uses hierarchical paths for user-owned data (`/users/{userId}/favoriteMovies/{movieId}`) to represent the `User 1:N Movie` relationship, which provides a clear ownership model. The movie and series data is globally available, allowing for easy listing and retrieval without complex security rules.\\n"
+    "reasoning": "The Firestore structure is designed to ensure security, scalability, and ease of debugging, following the principles of Authorization Independence, Clarity of Intent, and DBAC. It leverages denormalization and structural segregation to optimize security rules and query performance.\\n\\nAuthorization Independence is achieved by avoiding `get()` calls in security rules. User-specific data (favorites, watchProgress) are stored under the `/users/{userId}` path, which eliminates the need to fetch parent document data to authorize access.  Movies and Series collections are globally accessible for reading but restricted for modification, ensuring that only authorized services can update them.\\n\\nThe structure supports QAPs through structural segregation. Movies and series data are separated into distinct collections. User-specific favorite movies and series are stored within the user's document. This separation enables secure list operations, preventing unauthorized access to user data or modification of movies and series data.\\n\\nThe design uses hierarchical paths for user-owned data (`/users/{userId}/favoriteMovies/{movieId}`, `/users/{userId}/watchProgress/{mediaId}`) to represent the `User 1:N Media` relationship, which provides a clear ownership model. The movie and series data is globally available, allowing for easy listing and retrieval without complex security rules.\\n"
   }
 }
