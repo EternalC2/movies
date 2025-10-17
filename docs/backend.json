@@ -33,6 +33,10 @@
           "items": {
             "type": "string"
           }
+        },
+        "licenseKey": {
+          "type": "string",
+          "description": "The active license key for the user."
         }
       },
       "required": [
@@ -189,6 +193,33 @@
         "mediaType",
         "lastWatchedAt"
       ]
+    },
+    "License": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "License",
+      "type": "object",
+      "description": "Represents a license key for watching content.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "The license key itself."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["available", "claimed"],
+          "description": "The status of the license key."
+        },
+        "claimedBy": {
+          "type": "string",
+          "description": "The UID of the user who claimed the license."
+        },
+        "claimedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp of when the license was claimed."
+        }
+      },
+      "required": ["id", "status"]
     }
   },
   "auth": {
@@ -319,6 +350,22 @@
             {
               "name": "genreId",
               "description": "The TMDB ID of the genre."
+            }
+          ]
+        }
+      },
+       {
+        "path": "/licenses/{licenseKey}",
+        "definition": {
+          "entityName": "License",
+          "schema": {
+            "$ref": "#/backend/entities/License"
+          },
+          "description": "Stores available license keys for watching content.",
+          "params": [
+            {
+              "name": "licenseKey",
+              "description": "The license key string."
             }
           ]
         }

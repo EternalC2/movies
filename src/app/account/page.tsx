@@ -1,17 +1,26 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useAuth, useUser } from "@/firebase";
+import { useAuth, useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
 import { signOut } from "firebase/auth";
 import Link from "next/link";
+import { doc } from 'firebase/firestore';
+import { LicenseActivator } from '@/components/media/license-activator';
 
 export default function AccountPage() {
     const { user, isUserLoading } = useUser();
     const auth = useAuth();
+    const firestore = useFirestore();
     const router = useRouter();
+
+    const userRef = useMemoFirebase(() => 
+        user ? doc(firestore, 'users', user.uid) : null
+    , [firestore, user]);
+    
+    const { data: userProfile } = useDoc(userRef);
 
     useEffect(() => {
         if (!isUserLoading && !user) {
@@ -37,14 +46,16 @@ export default function AccountPage() {
     }
 
     return (
-        <div className="max-w-md mx-auto">
-            <h1 className="text-3xl font-headline font-bold mb-6">Mijn Account</h1>
+        <div className="max-w-md mx-auto space-y-8">
+            <h1 className="text-3xl font-headline font-bold">Mijn Account</h1>
             <Card>
                 <CardHeader>
                     <CardTitle>Profiel</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <p><strong>Email:</strong> {user.email}</p>
+                    <p><strong>Licentiestatus:</strong> {userProfile?.licenseKey ? <span className="text-green-500">Actief</span> : <span className="text-yellow-500">Inactief</span>}</p>
+
                     <div className="flex gap-4">
                         <Button variant="destructive" onClick={handleLogout}>Uitloggen</Button>
                          <Link href="/login">
@@ -53,6 +64,9 @@ export default function AccountPage() {
                     </div>
                 </CardContent>
             </Card>
+
+            {!userProfile?.licenseKey && <LicenseActivator />}
+
         </div>
     );
 }
