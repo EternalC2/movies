@@ -17,28 +17,28 @@ type Props = {
   params: { id: string };
 };
 
-export default function TVDetailsPage({ params }: Props) {
+export default function TVDetailsPage({ params: { id } }: Props) {
   const [series, setSeries] = useState<MediaDetails | null>(null);
   const [selectedSeason, setSelectedSeason] = useState<Season | null>(null);
   const [selectedSeasonNumber, setSelectedSeasonNumber] = useState('1');
 
   useEffect(() => {
     async function fetchSeriesDetails() {
-      const seriesDetails = await getMediaDetails("tv", params.id);
+      const seriesDetails = await getMediaDetails("tv", id);
       setSeries(seriesDetails);
     }
     fetchSeriesDetails();
-  }, [params.id]);
+  }, [id]);
 
   useEffect(() => {
     async function fetchSeason() {
       if (series) {
-        const seasonDetails = await getSeasonDetails(params.id, selectedSeasonNumber);
+        const seasonDetails = await getSeasonDetails(id, selectedSeasonNumber);
         setSelectedSeason(seasonDetails);
       }
     }
     fetchSeason();
-  }, [series, selectedSeasonNumber, params.id]);
+  }, [series, selectedSeasonNumber, id]);
 
   if (!series) {
     return <div className="flex justify-center items-center h-screen">Laden...</div>;
