@@ -15,12 +15,12 @@ export default function WatchPage({ params: { type, id } }: Props) {
   let episodeNumber;
 
   if (type === 'movie') {
-      embedUrl = `https://vidsrc-embed.ru/embed/movie/${id}`;
+      embedUrl = `https://vidsrc.to/embed/movie/${id}`;
   } else {
       // Default to season 1, episode 1 for a series if not specified
       seasonNumber = '1';
       episodeNumber = '1';
-      embedUrl = `https://vidsrc-embed.ru/embed/tv/${id}/${seasonNumber}/${episodeNumber}`;
+      embedUrl = `https://vidsrc.to/embed/tv/${id}/${seasonNumber}/${episodeNumber}`;
   }
 
   return (
