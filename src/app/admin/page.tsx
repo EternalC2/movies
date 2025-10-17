@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
-import { doc, collection, addDoc, serverTimestamp, writeBatch, getDocs, query } from 'firebase/firestore';
+import { doc, collection, addDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Spinner } from '@/components/ui/spinner';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { errorEmitter, FirestorePermissionError } from '@/firebase';
 
 function generateLicenseKey() {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -28,7 +29,7 @@ function generateLicenseKey() {
 export default function AdminPage() {
     const { user, isUserLoading } = useUser();
     const firestore = useFirestore();
-    const router = useRouter();
+    router = useRouter();
     const { toast } = useToast();
 
     const [newLicenseKey, setNewLicenseKey] = useState(generateLicenseKey());
@@ -54,28 +55,34 @@ export default function AdminPage() {
     }, [user, isUserLoading, router, userProfile, isProfileLoading, toast]);
 
 
-    const handleCreateLicense = async () => {
+    const handleCreateLicense = () => {
         if (!newLicenseKey.trim()) {
             toast({ title: "Fout", description: "Licentiecode mag niet leeg zijn.", variant: 'destructive'});
             return;
         }
-        setLoading(true);
-        try {
-            const licenseRef = doc(firestore, 'licenses', newLicenseKey);
-            await addDoc(collection(firestore, 'licenses'), {
-                id: newLicenseKey,
-                status: 'available',
-                createdAt: serverTimestamp()
-            });
+        if (!firestore) return;
 
+        setLoading(true);
+        const licenseData = {
+            id: newLicenseKey,
+            status: 'available',
+            createdAt: serverTimestamp()
+        };
+        const licenseRef = doc(firestore, 'licenses', newLicenseKey);
+
+        setDoc(licenseRef, licenseData).then(() => {
             toast({ title: "Succes!", description: `Licentie ${newLicenseKey} is aangemaakt.`});
             setNewLicenseKey(generateLicenseKey());
-
-        } catch (error: any) {
-            toast({ title: 'Aanmaken mislukt', description: error.message, variant: 'destructive' });
-        } finally {
+        }).catch(error => {
+            const contextualError = new FirestorePermissionError({
+                operation: 'create',
+                path: licenseRef.path,
+                requestResourceData: licenseData,
+            });
+            errorEmitter.emit('permission-error', contextualError);
+        }).finally(() => {
             setLoading(false);
-        }
+        });
     }
 
 

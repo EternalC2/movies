@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { errorEmitter, FirestorePermissionError } from '@/firebase';
 
 export function LicenseActivator() {
   const { user } = useUser();
@@ -25,7 +26,8 @@ export function LicenseActivator() {
       return;
     }
 
-    if (!licenseKey.trim()) {
+    const trimmedLicenseKey = licenseKey.trim();
+    if (!trimmedLicenseKey) {
       toast({
         title: 'Fout',
         description: 'Voer een geldige licentiecode in.',
@@ -36,7 +38,7 @@ export function LicenseActivator() {
 
     setLoading(true);
 
-    const licenseRef = doc(firestore, 'licenses', licenseKey.trim());
+    const licenseRef = doc(firestore, 'licenses', trimmedLicenseKey);
     const userRef = doc(firestore, 'users', user.uid);
 
     try {
@@ -52,35 +54,50 @@ export function LicenseActivator() {
         throw new Error('Deze licentiecode is al in gebruik.');
       }
 
-      // Use a batch to perform atomic write
       const batch = writeBatch(firestore);
 
-      // Update license status
-      batch.update(licenseRef, {
+      const licenseUpdateData = {
         status: 'claimed',
         claimedBy: user.uid,
         claimedAt: new Date(),
+      };
+      batch.update(licenseRef, licenseUpdateData);
+      
+      const userUpdateData = {
+        licenseKey: trimmedLicenseKey,
+      };
+      batch.update(userRef, userUpdateData);
+
+      await batch.commit().then(() => {
+         toast({
+            title: 'Succes!',
+            description: 'Uw licentie is succesvol geactiveerd.',
+         });
+         setLicenseKey('');
+      }).catch(error => {
+          const contextualError = new FirestorePermissionError({
+              operation: 'write', // A batch can contain multiple operations
+              path: `BATCHED_WRITE: user: ${userRef.path}, license: ${licenseRef.path}`,
+              requestResourceData: { userUpdate: userUpdateData, licenseUpdate: licenseUpdateData }
+          });
+          errorEmitter.emit('permission-error', contextualError);
       });
 
-      // Update user document with license key
-      batch.update(userRef, {
-        licenseKey: licenseKey.trim(),
-      });
-
-      await batch.commit();
-
-      toast({
-        title: 'Succes!',
-        description: 'Uw licentie is succesvol geactiveerd.',
-      });
-      setLicenseKey('');
     } catch (error: any) {
-      console.error('License activation error:', error);
-      toast({
-        title: 'Activeren mislukt',
-        description: error.message || 'Er is een onbekende fout opgetreden.',
-        variant: 'destructive',
-      });
+      // This will catch the getDoc error or manual throws
+      if (error.code === 'permission-denied') {
+         const contextualError = new FirestorePermissionError({
+              operation: 'get',
+              path: licenseRef.path,
+          });
+          errorEmitter.emit('permission-error', contextualError);
+      } else {
+        toast({
+          title: 'Activeren mislukt',
+          description: error.message || 'Er is een onbekende fout opgetreden.',
+          variant: 'destructive',
+        });
+      }
     } finally {
       setLoading(false);
     }
