@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useUser, useFirestore } from '@/firebase';
-import { doc, getDoc, writeBatch, serverTimestamp } from 'firebase/firestore';
+import { doc, writeBatch, serverTimestamp, getDoc } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
@@ -42,18 +42,23 @@ export function LicenseActivator() {
     const licenseRef = doc(firestore, 'licenses', trimmedLicenseKey);
 
     try {
-      // Create a batch to perform an atomic write
+      const licenseSnap = await getDoc(licenseRef);
+      if (!licenseSnap.exists() || licenseSnap.data().claimedBy) {
+          toast({
+            title: 'Activeren mislukt',
+            description: 'De licentiecode is ongeldig of al in gebruik.',
+            variant: 'destructive',
+          });
+          setLoading(false);
+          return;
+      }
+      
       const batch = writeBatch(firestore);
-
-      // 1. Update the user document
       batch.set(userRef, { licenseKey: trimmedLicenseKey }, { merge: true });
-
-      // 2. Update the license document
       batch.update(licenseRef, {
         claimedBy: user.uid,
         claimedAt: serverTimestamp()
       });
-
       await batch.commit();
 
       toast({
@@ -63,11 +68,10 @@ export function LicenseActivator() {
       setLicenseKey('');
 
     } catch (error: any) {
-      // This will catch any error, including permission denied from the rules
       const isPermissionError = error.code === 'permission-denied';
       if (isPermissionError) {
         const contextualError = new FirestorePermissionError({
-          operation: 'write', // A batch is a write operation
+          operation: 'write',
           path: `BATCH: users/${user.uid} + licenses/${trimmedLicenseKey}`,
           requestResourceData: {
             userUpdate: {licenseKey: trimmedLicenseKey},
