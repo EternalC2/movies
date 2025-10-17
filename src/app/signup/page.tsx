@@ -35,6 +35,7 @@ export default function SignupPage() {
         const userData = {
             id: user.uid,
             email: user.email,
+            profilePictureUrl: user.photoURL || null,
             role: 'user', // Default role
             favoriteMovieIds: [],
             favoriteSeriesIds: [],
