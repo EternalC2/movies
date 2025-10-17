@@ -3,11 +3,12 @@ import Image from "next/image";
 import Link from "next/link";
 import { getMediaDetails } from "@/lib/tmdb";
 import { TMDB_BACKDROP_URL, TMDB_IMAGE_URL } from "@/lib/config";
-import { Star, Calendar, Tv, Play, Heart } from "lucide-react";
+import { Star, Calendar, Tv, Play } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { TVDetailsClient } from "./tv-details-client";
+import { FavoriteButton } from "@/components/media/favorite-button";
 
 type Props = {
   params: { id: string };
@@ -104,10 +105,7 @@ export default async function TVDetailsPage({ params: { id } }: Props) {
                     Afspelen
                 </Button>
             </Link>
-            <Button size="lg" variant="outline">
-                <Heart className="mr-2 h-5 w-5" />
-                Toevoegen aan favorieten
-            </Button>
+            <FavoriteButton media={series} mediaType="tv" />
           </div>
         </div>
       </div>
