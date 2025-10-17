@@ -29,7 +29,7 @@ function generateLicenseKey() {
 export default function AdminPage() {
     const { user, isUserLoading } = useUser();
     const firestore = useFirestore();
-    router = useRouter();
+    const router = useRouter();
     const { toast } = useToast();
 
     const [newLicenseKey, setNewLicenseKey] = useState(generateLicenseKey());
