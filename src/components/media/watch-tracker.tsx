@@ -4,6 +4,8 @@ import { useEffect } from 'react';
 import { useUser, useFirestore } from '@/firebase';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { getMediaDetails } from '@/lib/tmdb';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 interface WatchTrackerProps {
   mediaId: string;
@@ -44,7 +46,14 @@ export function WatchTracker({ mediaId, mediaType, seasonNumber, episodeNumber }
           progressData.episodeNumber = parseInt(episodeNumber, 10);
         }
         
-        await setDoc(progressRef, progressData, { merge: true });
+        setDoc(progressRef, progressData, { merge: true }).catch(error => {
+            const contextualError = new FirestorePermissionError({
+                operation: 'update',
+                path: progressRef.path,
+                requestResourceData: progressData
+            });
+            errorEmitter.emit('permission-error', contextualError);
+        });
       }
     };
 

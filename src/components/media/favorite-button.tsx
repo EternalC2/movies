@@ -7,6 +7,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { doc, setDoc, deleteDoc } from 'firebase/firestore';
 import type { MediaDetails } from '@/lib/types';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 interface FavoriteButtonProps {
   media: MediaDetails;
@@ -32,7 +34,7 @@ export function FavoriteButton({ media, mediaType }: FavoriteButtonProps) {
   }, [favoriteDoc]);
 
   const toggleFavorite = async () => {
-    if (!user) {
+    if (!user || !firestore || !docRef) {
       toast({
         title: 'Inloggen vereist',
         description: 'Je moet ingelogd zijn om favorieten toe te voegen.',
@@ -41,39 +43,44 @@ export function FavoriteButton({ media, mediaType }: FavoriteButtonProps) {
       return;
     }
 
-    if (!firestore) return;
-
-    try {
-        if (isFavorite) {
-            await deleteDoc(docRef!);
+    if (isFavorite) {
+        deleteDoc(docRef).then(() => {
             toast({
                 title: 'Verwijderd uit favorieten',
                 description: `${media.title || media.name} is verwijderd uit je favorieten.`,
             });
-        } else {
-            const mediaData = {
-                id: media.id,
-                title: media.title || media.name,
-                poster_path: media.poster_path,
-                backdrop_path: media.backdrop_path,
-                overview: media.overview,
-                release_date: media.release_date || media.first_air_date,
-                vote_average: media.vote_average,
-                media_type: mediaType,
-            };
-            await setDoc(docRef!, mediaData);
+            setIsFavorite(false);
+        }).catch(error => {
+            const contextualError = new FirestorePermissionError({
+                operation: 'delete',
+                path: docRef.path,
+            });
+            errorEmitter.emit('permission-error', contextualError);
+        });
+    } else {
+        const mediaData = {
+            id: media.id,
+            title: media.title || media.name,
+            poster_path: media.poster_path,
+            backdrop_path: media.backdrop_path,
+            overview: media.overview,
+            release_date: media.release_date || media.first_air_date,
+            vote_average: media.vote_average,
+            media_type: mediaType,
+        };
+        setDoc(docRef, mediaData).then(() => {
             toast({
                 title: 'Toegevoegd aan favorieten!',
                 description: `${media.title || media.name} is toegevoegd aan je favorieten.`,
             });
-        }
-        setIsFavorite(!isFavorite);
-    } catch (error: any) {
-        console.error("Error updating favorite:", error);
-        toast({
-            title: 'Oeps! Er is iets misgegaan.',
-            description: error.message || 'Kon favoriet niet bijwerken.',
-            variant: 'destructive',
+            setIsFavorite(true);
+        }).catch(error => {
+            const contextualError = new FirestorePermissionError({
+                operation: 'create',
+                path: docRef.path,
+                requestResourceData: mediaData
+            });
+            errorEmitter.emit('permission-error', contextualError);
         });
     }
   };
