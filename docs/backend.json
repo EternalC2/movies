@@ -37,6 +37,11 @@
         "licenseKey": {
           "type": "string",
           "description": "The active license key for the user."
+        },
+        "role": {
+            "type": "string",
+            "enum": ["user", "admin"],
+            "description": "The role of the user."
         }
       },
       "required": [
