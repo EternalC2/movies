@@ -53,7 +53,6 @@ export default function AdminPage() {
         setLoading(true);
         const licenseData = {
             id: newLicenseKey,
-            status: 'available',
             createdAt: serverTimestamp()
         };
         const licenseRef = doc(firestore, 'licenses', newLicenseKey);

@@ -43,6 +43,7 @@ export function LicenseActivator() {
 
     try {
       const licenseSnap = await getDoc(licenseRef);
+      
       if (!licenseSnap.exists() || licenseSnap.data().claimedBy) {
           toast({
             title: 'Activeren mislukt',
