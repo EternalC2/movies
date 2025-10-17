@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useUser, useFirestore } from '@/firebase';
-import { doc, writeBatch, serverTimestamp, getDoc } from 'firebase/firestore';
+import { doc, serverTimestamp, runTransaction } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
@@ -42,54 +42,54 @@ export function LicenseActivator() {
     const licenseRef = doc(firestore, 'licenses', trimmedLicenseKey);
 
     try {
-        const licenseSnap = await getDoc(licenseRef);
-        
-        if (!licenseSnap.exists() || licenseSnap.data().claimedBy) {
-            toast({
-                title: 'Activeren mislukt',
-                description: 'De licentiecode is ongeldig of al in gebruik.',
-                variant: 'destructive',
-            });
-            setLoading(false);
-            return;
+      await runTransaction(firestore, async (transaction) => {
+        const licenseSnap = await transaction.get(licenseRef);
+
+        if (!licenseSnap.exists()) {
+          throw new Error('Licentiecode is ongeldig.');
         }
 
-        const batch = writeBatch(firestore);
-        
+        const licenseData = licenseSnap.data();
+        if (licenseData.claimedBy) {
+          throw new Error('Licentiecode is al in gebruik.');
+        }
+
         // Update user profile
-        batch.set(userRef, { licenseKey: trimmedLicenseKey }, { merge: true });
+        transaction.set(userRef, { licenseKey: trimmedLicenseKey }, { merge: true });
         
         // Update license document
-        batch.update(licenseRef, {
+        transaction.update(licenseRef, {
             claimedBy: user.uid,
             claimedAt: serverTimestamp()
         });
-        
-        await batch.commit();
+      });
 
-        toast({
-            title: 'Succes!',
-            description: 'Uw licentie is succesvol geactiveerd.',
-        });
-        setLicenseKey('');
+      toast({
+        title: 'Succes!',
+        description: 'Uw licentie is succesvol geactiveerd.',
+      });
+      setLicenseKey('');
 
     } catch (error: any) {
         const isPermissionError = error.code === 'permission-denied';
+
+        // Create a detailed error for permission issues
         if (isPermissionError) {
-            const contextualError = new FirestorePermissionError({
-                operation: 'write',
-                path: `BATCH: users/${user.uid} + licenses/${trimmedLicenseKey}`,
-                requestResourceData: {
-                    userUpdate: { licenseKey: trimmedLicenseKey },
-                    licenseUpdate: { claimedBy: user.uid }
-                }
-            });
-            errorEmitter.emit('permission-error', contextualError);
+          const contextualError = new FirestorePermissionError({
+            operation: 'write', // A transaction is a write operation
+            path: `TRANSACTION: users/${user.uid} + licenses/${trimmedLicenseKey}`,
+            requestResourceData: {
+              userUpdate: { licenseKey: trimmedLicenseKey },
+              licenseUpdate: { claimedBy: user.uid }
+            }
+          });
+          errorEmitter.emit('permission-error', contextualError);
         }
       
+        // Show a user-friendly toast for any kind of error
         toast({
             title: 'Activeren mislukt',
-            description: 'De licentiecode is ongeldig, al in gebruik, of u heeft onvoldoende rechten.',
+            description: error.message || 'Er is een onbekende fout opgetreden.',
             variant: 'destructive',
         });
     } finally {
