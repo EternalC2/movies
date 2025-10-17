@@ -39,7 +39,8 @@ export default function SignupPage() {
             favoriteMovieIds: [],
             favoriteSeriesIds: [],
         };
-        await setDoc(userRef, userData);
+        // Use setDoc with merge:true to be safe, although it's a new user.
+        await setDoc(userRef, userData, { merge: true });
     };
 
     const handleSignup = async (e: React.FormEvent) => {
@@ -56,6 +57,7 @@ export default function SignupPage() {
                 description: error.message,
                 variant: "destructive",
             });
+        } finally {
             setLoading(false);
         }
     };
@@ -65,15 +67,18 @@ export default function SignupPage() {
         const provider = new GoogleAuthProvider();
         try {
             const userCredential = await signInWithPopup(auth, provider);
+            // Re-using createUserProfile which also works for initial Google sign-in
             await createUserProfile(userCredential);
             router.push('/account');
-        } catch (error: any) {
+        } catch (error: any)
+{
             console.error("Error with Google sign in:", error);
             toast({
                 title: "Google-registratie mislukt",
                 description: error.message,
                 variant: "destructive",
             });
+        } finally {
             setLoading(false);
         }
     };

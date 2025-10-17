@@ -35,6 +35,8 @@ export default function LoginPage() {
         const userSnap = await getDoc(userRef);
 
         if (!userSnap.exists()) {
+            // This will create the doc if it doesn't exist.
+            // It's useful for users who signed up before the profile creation logic was in place.
             const userData = {
                 id: user.uid,
                 email: user.email,
@@ -42,7 +44,7 @@ export default function LoginPage() {
                 favoriteMovieIds: [],
                 favoriteSeriesIds: [],
             };
-            await setDoc(userRef, userData);
+            await setDoc(userRef, userData, { merge: true });
         }
     };
 
@@ -60,6 +62,7 @@ export default function LoginPage() {
                 description: error.message,
                 variant: "destructive",
             });
+        } finally {
             setLoading(false);
         }
     };
@@ -70,7 +73,7 @@ export default function LoginPage() {
         try {
             const userCredential = await signInWithPopup(auth, provider);
             await checkAndCreateUserProfile(userCredential);
-            router.push('/account');
+router.push('/account');
         } catch (error: any) {
             console.error("Error with Google sign in:", error);
             toast({
@@ -78,6 +81,7 @@ export default function LoginPage() {
                 description: error.message,
                 variant: "destructive",
             });
+        } finally {
             setLoading(false);
         }
     };
