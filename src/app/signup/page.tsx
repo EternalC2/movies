@@ -73,6 +73,10 @@ export default function SignupPage() {
             await createUserProfile(userCredential);
             router.push('/account');
         } catch (error: any) {
+            if (error.code === 'auth/popup-closed-by-user') {
+                console.log('Google sign-in cancelled by user.');
+                return;
+            }
             console.error("Error with Google sign in:", error);
             toast({
                 title: "Google-registratie mislukt",
@@ -104,8 +108,7 @@ export default function SignupPage() {
                             <Input id="email" type="email" placeholder="m@example.com" required value={email} onChange={(e) => setEmail(e.target.value)} />
                         </div>
                         <div className="grid gap-2">
-                            <Label htmlFor="password">Wachtwoord</Label>
-                            <Input id="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+                            <Label htmlFor="password">Wachtwoord</Label>                            <Input id="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
                         </div>
                     </CardContent>
                     <CardFooter className="flex flex-col gap-4">

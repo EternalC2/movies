@@ -77,6 +77,10 @@ export default function LoginPage() {
             await checkAndCreateUserProfile(userCredential);
             router.push('/account');
         } catch (error: any) {
+            if (error.code === 'auth/popup-closed-by-user') {
+                console.log('Google sign-in cancelled by user.');
+                return; 
+            }
             console.error("Error with Google sign in:", error);
             toast({
                 title: "Google-login mislukt",
