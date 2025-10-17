@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useUser, useFirestore } from '@/firebase';
-import { doc, getDoc, writeBatch, setDoc } from 'firebase/firestore';
+import { doc, getDoc, writeBatch, serverTimestamp } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
@@ -38,31 +38,61 @@ export function LicenseActivator() {
 
     setLoading(true);
 
+    const licenseRef = doc(firestore, 'licenses', trimmedLicenseKey);
     const userRef = doc(firestore, 'users', user.uid);
-    const userUpdateData = { licenseKey: trimmedLicenseKey };
 
-    setDoc(userRef, userUpdateData, { merge: true }).then(() => {
+    try {
+        const licenseSnap = await getDoc(licenseRef);
+
+        if (!licenseSnap.exists() || licenseSnap.data().status !== 'available') {
+            throw new Error('Licentie is ongeldig of al in gebruik.');
+        }
+
+        const batch = writeBatch(firestore);
+
+        // Update user profile
+        const userUpdateData = { licenseKey: trimmedLicenseKey };
+        batch.set(userRef, userUpdateData, { merge: true });
+
+        // Update license document
+        const licenseUpdateData = {
+            status: 'claimed',
+            claimedBy: user.uid,
+            claimedAt: serverTimestamp()
+        };
+        batch.update(licenseRef, licenseUpdateData);
+
+        await batch.commit();
+
         toast({
             title: 'Succes!',
             description: 'Uw licentie is succesvol geactiveerd.',
         });
         setLicenseKey('');
-    }).catch((error: any) => {
-        const contextualError = new FirestorePermissionError({
-            operation: 'update',
-            path: userRef.path,
-            requestResourceData: userUpdateData,
-        });
-        errorEmitter.emit('permission-error', contextualError);
 
+    } catch (error: any) {
+        const isPermissionError = error.code === 'permission-denied';
+        
+        if (isPermissionError) {
+             const contextualError = new FirestorePermissionError({
+                  operation: 'write', // The batch write failed
+                  path: `BATCH: users/${user.uid} + licenses/${trimmedLicenseKey}`,
+                  requestResourceData: { 
+                      userUpdate: {licenseKey: trimmedLicenseKey}, 
+                      licenseUpdate: { status: 'claimed' } 
+                  }
+              });
+             errorEmitter.emit('permission-error', contextualError);
+        }
+        
         toast({
             title: 'Activeren mislukt',
-            description: 'De licentiecode is ongeldig, al in gebruik, of u heeft geen permissies.',
+            description: error.message || 'De licentiecode is ongeldig, al in gebruik, of u heeft geen permissies.',
             variant: 'destructive',
         });
-    }).finally(() => {
+    } finally {
         setLoading(false);
-    });
+    }
   };
 
   return (
