@@ -10,11 +10,9 @@ type Props = {
 
 export default function WatchEpisodePage({ params: { type, id, slug } }: Props) {
   const [season, episode] = slug;
-  const embedUrl = `https://vidsrc.to/embed/${type}/${id}/${season}/${episode}`;
 
   return (
     <WatchPageClient 
-        embedUrl={embedUrl}
         mediaId={id}
         mediaType={type}
         seasonNumber={season}

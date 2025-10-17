@@ -11,19 +11,27 @@ import { Button } from '../ui/button';
 import { ArrowLeft } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import { Terminal } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+
+const servers = [
+  { id: 'vidsrc', name: 'Server 1', url: 'https://vidsrc.to/embed' },
+  { id: '2embed', name: 'Server 2', url: 'https://www.2embed.cc' }
+];
 
 interface WatchPageClientProps {
-  embedUrl: string;
   mediaId: string;
   mediaType: 'movie' | 'tv';
   seasonNumber?: string;
   episodeNumber?: string;
 }
 
-export function WatchPageClient({ embedUrl, mediaId, mediaType, seasonNumber, episodeNumber }: WatchPageClientProps) {
+export function WatchPageClient({ mediaId, mediaType, seasonNumber, episodeNumber }: WatchPageClientProps) {
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
   const router = useRouter();
+
+  const [selectedServer, setSelectedServer] = useState(servers[0].id);
+  const [embedUrl, setEmbedUrl] = useState('');
 
   const userRef = useMemoFirebase(() => 
     user ? doc(firestore, 'users', user.uid) : null
@@ -43,13 +51,23 @@ export function WatchPageClient({ embedUrl, mediaId, mediaType, seasonNumber, ep
         setIsAuthorized(true);
       } else {
         setIsAuthorized(false);
-        // Optional: Redirect immediately or show the message.
-        // For a better user experience, we show a message.
-        // router.push('/account'); 
       }
     }
 
   }, [user, isUserLoading, userProfile, isProfileLoading, router]);
+
+  useEffect(() => {
+    const server = servers.find(s => s.id === selectedServer);
+    if (!server) return;
+
+    let url = `${server.url}/${mediaType}/${mediaId}`;
+    if (mediaType === 'tv') {
+        const s = seasonNumber || '1';
+        const e = episodeNumber || '1';
+        url = `${server.url}/${mediaType}/${mediaId}/${s}/${e}`;
+    }
+    setEmbedUrl(url);
+  }, [selectedServer, mediaId, mediaType, seasonNumber, episodeNumber]);
 
   if (isUserLoading || isProfileLoading) {
     return (
@@ -91,14 +109,29 @@ export function WatchPageClient({ embedUrl, mediaId, mediaType, seasonNumber, ep
             Terug
           </Button>
         </Link>
+        <div className="flex-grow flex justify-center">
+             <Tabs value={selectedServer} onValueChange={setSelectedServer} className="w-auto">
+                <TabsList>
+                    {servers.map(server => (
+                        <TabsTrigger key={server.id} value={server.id}>
+                            {server.name}
+                        </TabsTrigger>
+                    ))}
+                </TabsList>
+            </Tabs>
+        </div>
+         <div className="w-24"></div> {/* Spacer to balance the back button */}
       </header>
-      <div className="flex-grow w-full h-full">
-        <iframe
-          src={embedUrl}
-          title="Media Player"
-          allowFullScreen
-          className="w-full h-full border-0"
-        ></iframe>
+      <div className="flex-grow w-full h-full pt-16">
+        {embedUrl && (
+            <iframe
+            key={embedUrl} // IMPORTANT: Change key to force iframe reload
+            src={embedUrl}
+            title="Media Player"
+            allowFullScreen
+            className="w-full h-full border-0"
+            ></iframe>
+        )}
       </div>
     </div>
   );
