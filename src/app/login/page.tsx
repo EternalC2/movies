@@ -75,7 +75,7 @@ export default function LoginPage() {
         try {
             const userCredential = await signInWithPopup(auth, provider);
             await checkAndCreateUserProfile(userCredential);
-router.push('/account');
+            router.push('/account');
         } catch (error: any) {
             console.error("Error with Google sign in:", error);
             toast({

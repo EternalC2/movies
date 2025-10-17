@@ -72,8 +72,7 @@ export default function SignupPage() {
             // Re-using createUserProfile which also works for initial Google sign-in
             await createUserProfile(userCredential);
             router.push('/account');
-        } catch (error: any)
-{
+        } catch (error: any) {
             console.error("Error with Google sign in:", error);
             toast({
                 title: "Google-registratie mislukt",
