@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useUser, useFirestore } from '@/firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, writeBatch, serverTimestamp } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
@@ -39,10 +39,22 @@ export function LicenseActivator() {
     setLoading(true);
 
     const userRef = doc(firestore, 'users', user.uid);
+    const licenseRef = doc(firestore, 'licenses', trimmedLicenseKey);
 
     try {
-      // Just try to update the user document. The rules will handle validation.
-      await setDoc(userRef, { licenseKey: trimmedLicenseKey }, { merge: true });
+      // Create a batch to perform an atomic write
+      const batch = writeBatch(firestore);
+
+      // 1. Update the user document
+      batch.set(userRef, { licenseKey: trimmedLicenseKey }, { merge: true });
+
+      // 2. Update the license document
+      batch.update(licenseRef, {
+        claimedBy: user.uid,
+        claimedAt: serverTimestamp()
+      });
+
+      await batch.commit();
 
       toast({
         title: 'Succes!',
@@ -51,14 +63,20 @@ export function LicenseActivator() {
       setLicenseKey('');
 
     } catch (error: any) {
-      // The security rules will reject the write and this catch block will be executed.
-      const contextualError = new FirestorePermissionError({
-          operation: 'update',
-          path: userRef.path,
-          requestResourceData: { licenseKey: trimmedLicenseKey }
-      });
-      errorEmitter.emit('permission-error', contextualError);
-
+      // This will catch any error, including permission denied from the rules
+      const isPermissionError = error.code === 'permission-denied';
+      if (isPermissionError) {
+        const contextualError = new FirestorePermissionError({
+          operation: 'write', // A batch is a write operation
+          path: `BATCH: users/${user.uid} + licenses/${trimmedLicenseKey}`,
+          requestResourceData: {
+            userUpdate: {licenseKey: trimmedLicenseKey},
+            licenseUpdate: {claimedBy: user.uid}
+          }
+        });
+        errorEmitter.emit('permission-error', contextualError);
+      }
+      
       toast({
         title: 'Activeren mislukt',
         description: 'De licentiecode is ongeldig, al in gebruik, of u heeft onvoldoende rechten.',
