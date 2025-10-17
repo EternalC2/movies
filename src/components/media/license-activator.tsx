@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useUser, useFirestore } from '@/firebase';
-import { doc, getDoc, writeBatch } from 'firebase/firestore';
+import { doc, getDoc, writeBatch, setDoc } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
@@ -56,6 +56,7 @@ export function LicenseActivator() {
 
       const batch = writeBatch(firestore);
 
+      // Update license document
       const licenseUpdateData = {
         status: 'claimed',
         claimedBy: user.uid,
@@ -63,10 +64,12 @@ export function LicenseActivator() {
       };
       batch.update(licenseRef, licenseUpdateData);
       
+      // Update user document
       const userUpdateData = {
         licenseKey: trimmedLicenseKey,
       };
-      batch.update(userRef, userUpdateData);
+      // Use set with merge instead of update to avoid issues with hasOnly in rules
+      batch.set(userRef, userUpdateData, { merge: true });
 
       await batch.commit().then(() => {
          toast({
@@ -75,6 +78,7 @@ export function LicenseActivator() {
          });
          setLicenseKey('');
       }).catch(error => {
+          // This catch block will handle the batch commit error
           const contextualError = new FirestorePermissionError({
               operation: 'write', // A batch can contain multiple operations
               path: `BATCHED_WRITE: user: ${userRef.path}, license: ${licenseRef.path}`,
