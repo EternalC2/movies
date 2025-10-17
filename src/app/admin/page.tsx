@@ -46,18 +46,35 @@ export default function AdminPage() {
 
 
     useEffect(() => {
-        // Wait until both user and profile loading are complete
-        if (!isUserLoading && !isProfileLoading) {
-            if (!user) {
-                // If not logged in after loading, redirect
-                router.push('/login');
-            } else if (userProfile?.role !== 'admin') {
-                // If logged in but not an admin, show toast and redirect
+        // This effect handles redirection based on auth state and user role.
+        // It waits until both user and profile loading are complete.
+        if (isUserLoading || isProfileLoading) {
+            // Still loading, do nothing.
+            return;
+        }
+
+        if (!user) {
+            // Not logged in, redirect to login.
+            router.push('/login');
+            return;
+        }
+
+        if (userProfile) {
+            // We have a user and a profile, now check the role.
+            if (userProfile.role !== 'admin') {
+                // Logged in but not an admin, show toast and redirect.
                 toast({ title: "Geen toegang", description: "U heeft geen toestemming om deze pagina te bekijken.", variant: 'destructive' });
                 router.push('/account');
             }
+            // If userProfile.role IS 'admin', we do nothing and the page renders.
+        } else {
+             // We have a user, but no profile was found after loading. This is an edge case.
+             // This can happen if the user document doesn't exist in Firestore.
+             toast({ title: "Profiel niet gevonden", description: "Kon uw gebruikersprofiel niet laden.", variant: 'destructive' });
+             router.push('/account');
         }
-    }, [user, isUserLoading, userProfile, isProfileLoading, router]);
+
+    }, [user, isUserLoading, userProfile, isProfileLoading, router, toast]);
 
 
     const handleCreateLicense = () => {
@@ -91,15 +108,17 @@ export default function AdminPage() {
     }
 
 
+    // Show a loading screen while we verify user and role. This prevents the "flash".
     if (isUserLoading || isProfileLoading) {
         return <div className="flex justify-center items-center h-screen"><Spinner size="large" /></div>;
     }
 
+    // After loading, if the user isn't an admin, render nothing while the redirect happens.
     if (!user || userProfile?.role !== 'admin') {
-        // This will be shown briefly before the redirect in useEffect triggers, or if the redirect fails.
         return null;
     }
 
+    // Only if all checks pass, render the admin page content.
     return (
         <div className="max-w-4xl mx-auto space-y-8">
             <h1 className="text-3xl font-headline font-bold">Admin Paneel</h1>
