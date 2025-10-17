@@ -71,7 +71,7 @@ export function WatchPageClient({ mediaId, mediaType, seasonNumber, episodeNumbe
 
   if (isUserLoading || isProfileLoading) {
     return (
-      <div className="fixed inset-0 bg-black flex justify-center items-center">
+      <div className="flex h-screen w-full items-center justify-center bg-black">
         <Spinner size="large" />
       </div>
     );
@@ -79,7 +79,7 @@ export function WatchPageClient({ mediaId, mediaType, seasonNumber, episodeNumbe
 
   if (!isAuthorized) {
     return (
-        <div className="fixed inset-0 bg-black flex justify-center items-center p-4">
+        <div className="flex h-screen w-full items-center justify-center bg-black p-4">
             <Alert variant="destructive" className="max-w-md">
                 <Terminal className="h-4 w-4" />
                 <AlertTitle>Geen Toegang</AlertTitle>
@@ -95,14 +95,14 @@ export function WatchPageClient({ mediaId, mediaType, seasonNumber, episodeNumbe
   }
 
   return (
-    <div className="fixed inset-0 bg-black flex flex-col antialiased">
+    <div className="flex h-screen flex-col bg-black text-white antialiased">
       <WatchTracker
         mediaId={mediaId}
         mediaType={mediaType}
         seasonNumber={seasonNumber}
         episodeNumber={episodeNumber}
       />
-      <header className="p-4 flex items-center justify-between z-10 bg-gradient-to-b from-black/80 to-transparent">
+      <header className="flex shrink-0 items-center justify-between p-4">
         <Link href={`/${mediaType}/${mediaId}`} passHref>
           <Button variant="ghost" className="text-white hover:bg-white/10 hover:text-white">
             <ArrowLeft className="mr-2 h-4 w-4" />
@@ -120,9 +120,9 @@ export function WatchPageClient({ mediaId, mediaType, seasonNumber, episodeNumbe
                 </TabsList>
             </Tabs>
         </div>
-         <div className="w-24"></div> {/* Spacer to balance the back button */}
+         <div className="w-24 flex-shrink-0"></div> {/* Spacer to balance the back button */}
       </header>
-      <div className="flex-grow w-full h-full -mt-16">
+      <div className="flex-grow">
         {embedUrl && (
             <iframe
             key={embedUrl} // IMPORTANT: Change key to force iframe reload
