@@ -42,17 +42,22 @@ export default function AdminPage() {
     const { data: userProfile, isLoading: isProfileLoading } = useDoc(userRef);
 
     const licensesRef = useMemoFirebase(() => collection(firestore, 'licenses'), [firestore]);
-    const { data: licenses, isLoading: licensesLoading, error } = useCollection(licensesRef);
+    const { data: licenses, isLoading: licensesLoading } = useCollection(licensesRef);
 
 
     useEffect(() => {
-        if (!isUserLoading && !user) {
-            router.push('/login');
-        } else if (user && !isProfileLoading && userProfile?.role !== 'admin') {
-            toast({ title: "Geen toegang", description: "U heeft geen toestemming om deze pagina te bekijken.", variant: 'destructive' });
-            router.push('/account');
+        // Wait until both user and profile loading are complete
+        if (!isUserLoading && !isProfileLoading) {
+            if (!user) {
+                // If not logged in after loading, redirect
+                router.push('/login');
+            } else if (userProfile?.role !== 'admin') {
+                // If logged in but not an admin, show toast and redirect
+                toast({ title: "Geen toegang", description: "U heeft geen toestemming om deze pagina te bekijken.", variant: 'destructive' });
+                router.push('/account');
+            }
         }
-    }, [user, isUserLoading, router, userProfile, isProfileLoading, toast]);
+    }, [user, isUserLoading, userProfile, isProfileLoading, router, toast]);
 
 
     const handleCreateLicense = () => {
@@ -91,6 +96,7 @@ export default function AdminPage() {
     }
 
     if (!user || userProfile?.role !== 'admin') {
+        // This will be shown briefly before the redirect in useEffect triggers, or if the redirect fails.
         return null;
     }
 

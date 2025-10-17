@@ -9,6 +9,7 @@ import { signOut } from "firebase/auth";
 import Link from "next/link";
 import { doc } from 'firebase/firestore';
 import { LicenseActivator } from '@/components/media/license-activator';
+import { Spinner } from '@/components/ui/spinner';
 
 export default function AccountPage() {
     const { user, isUserLoading } = useUser();
@@ -20,9 +21,10 @@ export default function AccountPage() {
         user ? doc(firestore, 'users', user.uid) : null
     , [firestore, user]);
     
-    const { data: userProfile } = useDoc(userRef);
+    const { data: userProfile, isLoading: isProfileLoading } = useDoc(userRef);
 
     useEffect(() => {
+        // Wait until both user and profile loading are complete
         if (!isUserLoading && !user) {
             router.push('/login');
         }
@@ -37,8 +39,8 @@ export default function AccountPage() {
         }
     };
 
-    if (isUserLoading) {
-        return <div className="flex justify-center items-center h-screen">Laden...</div>;
+    if (isUserLoading || (user && isProfileLoading)) {
+        return <div className="flex justify-center items-center h-screen"><Spinner size="large" /></div>;
     }
 
     if (!user) {
