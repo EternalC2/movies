@@ -60,11 +60,24 @@ export function WatchPageClient({ mediaId, mediaType, seasonNumber, episodeNumbe
     const server = servers.find(s => s.id === selectedServer);
     if (!server) return;
 
-    let url = `${server.url}/${mediaType}/${mediaId}`;
-    if (mediaType === 'tv') {
+    let url: string;
+
+    if (server.id === '2embed') {
+      if (mediaType === 'movie') {
+        url = `${server.url}/embed/${mediaId}`;
+      } else { // tv
         const s = seasonNumber || '1';
         const e = episodeNumber || '1';
-        url = `${url}/${s}/${e}`;
+        url = `${server.url}/embedtv/${mediaId}&s=${s}&e=${e}`;
+      }
+    } else {
+      // Default behavior for vidsrc and potentially others
+      url = `${server.url}/${mediaType}/${mediaId}`;
+      if (mediaType === 'tv') {
+          const s = seasonNumber || '1';
+          const e = episodeNumber || '1';
+          url = `${url}/${s}/${e}`;
+      }
     }
     setEmbedUrl(url);
   }, [selectedServer, mediaId, mediaType, seasonNumber, episodeNumber]);
