@@ -39,6 +39,7 @@ export default function SignupPage() {
             role: 'user', // Default role
             favoriteMovieIds: [],
             favoriteSeriesIds: [],
+            licenseKey: null,
         };
         // Use setDoc with merge:true to be safe, although it's a new user.
         await setDoc(userRef, userData, { merge: true });

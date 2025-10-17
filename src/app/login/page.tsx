@@ -44,6 +44,7 @@ export default function LoginPage() {
                 role: 'user', // Default role
                 favoriteMovieIds: [],
                 favoriteSeriesIds: [],
+                licenseKey: null,
             };
             await setDoc(userRef, userData, { merge: true });
         }
