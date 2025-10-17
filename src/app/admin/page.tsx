@@ -11,7 +11,9 @@ import { useToast } from "@/hooks/use-toast";
 import { Spinner } from '@/components/ui/spinner';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { errorEmitter, FirestorePermissionError } from '@/firebase';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
+
 
 function generateLicenseKey() {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -74,7 +76,7 @@ export default function AdminPage() {
              router.push('/account');
         }
 
-    }, [user, isUserLoading, userProfile, isProfileLoading, router]);
+    }, [user, isUserLoading, userProfile, isProfileLoading, router, toast]);
 
 
     const handleCreateLicense = () => {
