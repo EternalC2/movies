@@ -57,7 +57,7 @@ export default function AdminPage() {
                 router.push('/account');
             }
         }
-    }, [user, isUserLoading, userProfile, isProfileLoading, router, toast]);
+    }, [user, isUserLoading, userProfile, isProfileLoading, router]);
 
 
     const handleCreateLicense = () => {
