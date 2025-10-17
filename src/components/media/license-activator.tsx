@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useUser, useFirestore } from '@/firebase';
-import { doc, getDoc, writeBatch, setDoc } from 'firebase/firestore';
+import { doc, getDoc, writeBatch } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
@@ -42,68 +42,53 @@ export function LicenseActivator() {
     const userRef = doc(firestore, 'users', user.uid);
 
     try {
-      const licenseSnap = await getDoc(licenseRef);
+        const licenseSnap = await getDoc(licenseRef);
 
-      if (!licenseSnap.exists()) {
-        throw new Error('Licentiecode niet gevonden.');
-      }
+        if (!licenseSnap.exists() || licenseSnap.data().status !== 'available') {
+            throw new Error('Licentiecode is ongeldig of al in gebruik.');
+        }
 
-      const licenseData = licenseSnap.data();
+        // Create a batch to perform atomic update
+        const batch = writeBatch(firestore);
 
-      if (licenseData.status === 'claimed') {
-        throw new Error('Deze licentiecode is al in gebruik.');
-      }
+        // 1. Update the user document
+        const userUpdateData = { licenseKey: trimmedLicenseKey };
+        batch.set(userRef, userUpdateData, { merge: true });
+        
+        // 2. Update the license document
+        const licenseUpdateData = {
+            status: 'claimed',
+            claimedBy: user.uid,
+            claimedAt: new Date(),
+        };
+        batch.update(licenseRef, licenseUpdateData);
 
-      const batch = writeBatch(firestore);
+        // Commit the batch
+        await batch.commit();
 
-      // Update license document
-      const licenseUpdateData = {
-        status: 'claimed',
-        claimedBy: user.uid,
-        claimedAt: new Date(),
-      };
-      batch.update(licenseRef, licenseUpdateData);
-      
-      // Update user document
-      const userUpdateData = {
-        licenseKey: trimmedLicenseKey,
-      };
-      // Use set with merge instead of update to avoid issues with hasOnly in rules
-      batch.set(userRef, userUpdateData, { merge: true });
-
-      await batch.commit().then(() => {
-         toast({
+        toast({
             title: 'Succes!',
             description: 'Uw licentie is succesvol geactiveerd.',
-         });
-         setLicenseKey('');
-      }).catch(error => {
-          // This catch block will handle the batch commit error
-          const contextualError = new FirestorePermissionError({
-              operation: 'write', // A batch can contain multiple operations
-              path: `BATCHED_WRITE: user: ${userRef.path}, license: ${licenseRef.path}`,
-              requestResourceData: { userUpdate: userUpdateData, licenseUpdate: licenseUpdateData }
-          });
-          errorEmitter.emit('permission-error', contextualError);
-      });
+        });
+        setLicenseKey('');
 
     } catch (error: any) {
-      // This will catch the getDoc error or manual throws
-      if (error.code === 'permission-denied') {
-         const contextualError = new FirestorePermissionError({
-              operation: 'get',
-              path: licenseRef.path,
-          });
-          errorEmitter.emit('permission-error', contextualError);
-      } else {
-        toast({
-          title: 'Activeren mislukt',
-          description: error.message || 'Er is een onbekende fout opgetreden.',
-          variant: 'destructive',
-        });
-      }
+        if (error.code === 'permission-denied') {
+             const contextualError = new FirestorePermissionError({
+                  operation: 'write', // The batch write failed
+                  path: `BATCH: users/${user.uid} + licenses/${trimmedLicenseKey}`,
+                  requestResourceData: { userUpdate: {licenseKey: trimmedLicenseKey}, licenseUpdate: { status: 'claimed' } }
+              });
+              errorEmitter.emit('permission-error', contextualError);
+        } else {
+            toast({
+              title: 'Activeren mislukt',
+              description: error.message || 'Er is een onbekende fout opgetreden.',
+              variant: 'destructive',
+            });
+        }
     } finally {
-      setLoading(false);
+        setLoading(false);
     }
   };
 
