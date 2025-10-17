@@ -20,6 +20,11 @@
           "description": "URL of the user's profile picture (optional).",
           "format": "uri"
         },
+        "role": {
+          "type": "string",
+          "description": "The role of the user (e.g., 'user', 'admin').",
+          "enum": ["user", "admin"]
+        },
         "favoriteMovieIds": {
           "type": "array",
           "description": "References to favorite Movies. (Relationship: User 1:N Movie)",
