@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useUser, useFirestore } from '@/firebase';
-import { doc, runTransaction, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
@@ -38,27 +38,11 @@ export function LicenseActivator() {
 
     setLoading(true);
 
-    const licenseRef = doc(firestore, 'licenses', trimmedLicenseKey);
     const userRef = doc(firestore, 'users', user.uid);
 
     try {
-      await runTransaction(firestore, async (transaction) => {
-        const licenseSnap = await transaction.get(licenseRef);
-
-        if (!licenseSnap.exists() || licenseSnap.data().status !== 'available') {
-          throw new Error('Licentie is ongeldig of al in gebruik.');
-        }
-
-        // Update user profile
-        transaction.set(userRef, { licenseKey: trimmedLicenseKey }, { merge: true });
-
-        // Update license document
-        transaction.update(licenseRef, {
-          status: 'claimed',
-          claimedBy: user.uid,
-          claimedAt: serverTimestamp()
-        });
-      });
+      // Just try to update the user document. The rules will handle validation.
+      await setDoc(userRef, { licenseKey: trimmedLicenseKey }, { merge: true });
 
       toast({
         title: 'Succes!',
@@ -67,23 +51,17 @@ export function LicenseActivator() {
       setLicenseKey('');
 
     } catch (error: any) {
-      // If the transaction fails, it could be a permission error or our custom error.
-      const isPermissionError = error.code === 'permission-denied';
-      if (isPermissionError) {
-        const contextualError = new FirestorePermissionError({
-          operation: 'write', // A transaction is a write operation
-          path: `TRANSACTION: users/${user.uid} + licenses/${trimmedLicenseKey}`,
-          requestResourceData: {
-            userUpdate: { licenseKey: trimmedLicenseKey },
-            licenseUpdate: { status: 'claimed' }
-          }
-        });
-        errorEmitter.emit('permission-error', contextualError);
-      }
-      
+      // The security rules will reject the write and this catch block will be executed.
+      const contextualError = new FirestorePermissionError({
+          operation: 'update',
+          path: userRef.path,
+          requestResourceData: { licenseKey: trimmedLicenseKey }
+      });
+      errorEmitter.emit('permission-error', contextualError);
+
       toast({
         title: 'Activeren mislukt',
-        description: error.message || 'De licentiecode is ongeldig of de transactie is mislukt.',
+        description: 'De licentiecode is ongeldig, al in gebruik, of u heeft onvoldoende rechten.',
         variant: 'destructive',
       });
     } finally {
