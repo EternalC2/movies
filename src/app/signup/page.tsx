@@ -7,15 +7,17 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
-import { useAuth, useUser } from "@/firebase";
-import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { useAuth, useUser, useFirestore } from "@/firebase";
+import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, UserCredential } from "firebase/auth";
 import { useToast } from "@/hooks/use-toast";
+import { doc, setDoc } from "firebase/firestore";
 
 export default function SignupPage() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const auth = useAuth();
+    const firestore = useFirestore();
     const { user, isUserLoading } = useUser();
     const router = useRouter();
     const { toast } = useToast();
@@ -26,11 +28,26 @@ export default function SignupPage() {
         }
     }, [user, isUserLoading, router]);
 
+    const createUserProfile = async (userCred: UserCredential) => {
+        if (!firestore) return;
+        const user = userCred.user;
+        const userRef = doc(firestore, "users", user.uid);
+        const userData = {
+            id: user.uid,
+            email: user.email,
+            role: 'user', // Default role
+            favoriteMovieIds: [],
+            favoriteSeriesIds: [],
+        };
+        await setDoc(userRef, userData);
+    };
+
     const handleSignup = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
         try {
-            await createUserWithEmailAndPassword(auth, email, password);
+            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            await createUserProfile(userCredential);
             router.push('/account');
         } catch (error: any) {
             console.error("Error signing up:", error);
@@ -47,7 +64,8 @@ export default function SignupPage() {
         setLoading(true);
         const provider = new GoogleAuthProvider();
         try {
-            await signInWithPopup(auth, provider);
+            const userCredential = await signInWithPopup(auth, provider);
+            await createUserProfile(userCredential);
             router.push('/account');
         } catch (error: any) {
             console.error("Error with Google sign in:", error);
@@ -88,7 +106,7 @@ export default function SignupPage() {
                         <Button className="w-full" type="submit" disabled={loading}>
                             {loading ? 'Bezig met registreren...' : 'Account aanmaken'}
                         </Button>
-                         <Button variant="outline" className="w-full" onClick={handleGoogleSignIn} disabled={loading}>
+                         <Button variant="outline" className="w-full" onClick={handleGoogleSignIn} disabled={loading} type="button">
                             Registreren met Google
                         </Button>
                         <div className="mt-4 text-center text-sm">

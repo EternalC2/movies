@@ -7,15 +7,17 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
-import { useAuth, useUser } from "@/firebase";
-import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { useAuth, useUser, useFirestore } from "@/firebase";
+import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, UserCredential } from "firebase/auth";
 import { useToast } from "@/hooks/use-toast";
+import { doc, setDoc, getDoc } from "firebase/firestore";
 
 export default function LoginPage() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const auth = useAuth();
+    const firestore = useFirestore();
     const { user, isUserLoading } = useUser();
     const router = useRouter();
     const { toast } = useToast();
@@ -26,11 +28,30 @@ export default function LoginPage() {
         }
     }, [user, isUserLoading, router]);
 
+    const checkAndCreateUserProfile = async (userCred: UserCredential) => {
+        if (!firestore) return;
+        const user = userCred.user;
+        const userRef = doc(firestore, "users", user.uid);
+        const userSnap = await getDoc(userRef);
+
+        if (!userSnap.exists()) {
+            const userData = {
+                id: user.uid,
+                email: user.email,
+                role: 'user', // Default role
+                favoriteMovieIds: [],
+                favoriteSeriesIds: [],
+            };
+            await setDoc(userRef, userData);
+        }
+    };
+
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
         try {
-            await signInWithEmailAndPassword(auth, email, password);
+            const userCredential = await signInWithEmailAndPassword(auth, email, password);
+            await checkAndCreateUserProfile(userCredential);
             router.push('/account');
         } catch (error: any) {
             console.error("Error signing in:", error);
@@ -47,7 +68,8 @@ export default function LoginPage() {
         setLoading(true);
         const provider = new GoogleAuthProvider();
         try {
-            await signInWithPopup(auth, provider);
+            const userCredential = await signInWithPopup(auth, provider);
+            await checkAndCreateUserProfile(userCredential);
             router.push('/account');
         } catch (error: any) {
             console.error("Error with Google sign in:", error);
@@ -89,7 +111,7 @@ export default function LoginPage() {
                         <Button className="w-full" type="submit" disabled={loading}>
                             {loading ? 'Bezig met inloggen...' : 'Inloggen'}
                         </Button>
-                        <Button variant="outline" className="w-full" onClick={handleGoogleSignIn} disabled={loading}>
+                        <Button variant="outline" className="w-full" onClick={handleGoogleSignIn} type="button" disabled={loading}>
                             Inloggen met Google
                         </Button>
                         <div className="mt-4 text-center text-sm">
