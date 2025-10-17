@@ -1,185 +1,159 @@
-/**
- * @file Firestore Security Rules
- * @description This ruleset enforces a strict user-ownership model for personal data while allowing public read access to shared content catalogs.
- *
- * Data Structure:
- * - `/users/{userId}`: Stores user profiles and acts as the root for all user-specific data.
- * - `/users/{userId}/favoriteMovies/{movieId}`:  Stores user's favorite movies.
- * - `/users/{userId}/favoriteSeries/{seriesId}`: Stores user's favorite series.
- * - `/users/{userId}/watchProgress/{mediaId}`: Stores user's watch progress.
- * - `/movies/{movieId}`: Stores public movie data, readable by all, writable by authorized services.
- * - `/series/{seriesId}`: Stores public series data, readable by all, writable by authorized services.
- * - `/genres/{genreId}`: Stores public genre data, readable by all, writable by authorized services.
- * - `/licenses/{licenseKey}`: Stores license keys with restricted read and write access.
- *
- * Key Security Decisions:
- * - User data is strictly controlled by the owning user.
- * - Movies, series, and genres are publicly readable but only writable by authorized services (currently not implemented in this prototype).
- * - Listing of user subcollections is allowed only for the owning user.
- *
- * Denormalization for Authorization:
- * - User-specific data is nested under the `/users/{userId}` path to avoid the need for `get()` calls to authorize access. The `userId` is implicitly the owner of any data under their path.
- */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Controls access to user profile documents.
+     * @description Checks if the request is authenticated.
+     * @returns {boolean} True if the request is authenticated, false otherwise.
+     */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /**
+     * @description Checks if the authenticated user is the owner of the resource.
+     * @param {string} userId - The user ID to check against.
+     * @returns {boolean} True if the user is the owner, false otherwise.
+     */
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    /**
+     * @description Checks if the authenticated user is the owner of the resource and the resource exists.
+     * @param {string} userId - The user ID to check against.
+     * @returns {boolean} True if the user is the owner and the resource exists, false otherwise.
+     */
+    function isExistingOwner(userId) {
+      return isOwner(userId) && existsAfter(/databases/$(database)/documents/users/$(userId));
+    }
+
+    /**
+     * @description Rules for user profiles.
      * @path /users/{userId}
-     * @allow (create) - Authenticated user can create their own profile.
-     * @allow (get, list, update, delete) - Authenticated user can only access their own profile.
-     * @deny (create) - If the authenticated user's ID does not match the userId in the path.
-     * @deny (update, delete) - If the authenticated user is not the owner of the document.
-     * @principle Enforces document ownership and prevents unauthorized profile access.
+     * @allow (create) User 'JXSnPO86PCfZIkIimKWwd0wDCgC2' can create their profile.
+     * @deny (create) User 'someOtherUserId' cannot create a profile for 'JXSnPO86PCfZIkIimKWwd0wDCgC2'.
+     * @allow (get, update, delete) User 'JXSnPO86PCfZIkIimKWwd0wDCgC2' can get, update, and delete their own profile.
+     * @deny (get, update, delete) User 'someOtherUserId' cannot get, update, or delete the profile of 'JXSnPO86PCfZIkIimKWwd0wDCgC2'.
+     * @principle Enforces document ownership for writes. Allows owner to read their data.
      */
     match /users/{userId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
-
-      // For update and delete operations, we need to check if the document exists and the user is the owner
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource.data != null;
-      }
-
       allow get: if isOwner(userId);
       allow list: if false;
       allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isExistingOwner(userId);
-      allow delete: if isExistingOwner(userId);
+      allow update: if isOwner(userId);
+      allow delete: if isOwner(userId);
     }
 
     /**
-     * @description Controls access to a user's favorite movies.
+     * @description Rules for a user's favorite movies.
      * @path /users/{userId}/favoriteMovies/{movieId}
-     * @allow (create, get, list, update, delete) - Authenticated user can only access their own favorite movies.
-     * @deny (create, get, list, update, delete) - If the authenticated user is not the owner.
-     * @principle Enforces document ownership for managing user's favorite movies.
+     * @allow (create) User 'JXSnPO86PCfZIkIimKWwd0wDCgC2' can add a movie to their favorites.
+     * @deny (create) User 'someOtherUserId' cannot add a movie to the favorites of 'JXSnPO86PCfZIkIimKWwd0wDCgC2'.
+     * @allow (get, update, delete) User 'JXSnPO86PCfZIkIimKWwd0wDCgC2' can get, update, and delete their own favorite movies.
+     * @deny (get, update, delete) User 'someOtherUserId' cannot get, update, or delete the favorite movies of 'JXSnPO86PCfZIkIimKWwd0wDCgC2'.
+     * @principle Enforces document ownership for writes. Allows owner to read their data.
      */
     match /users/{userId}/favoriteMovies/{movieId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
-
       allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
-      allow create: if isSignedIn() && isOwner(userId);
+      allow list: if false;
+      allow create: if isOwner(userId);
       allow update: if isOwner(userId);
       allow delete: if isOwner(userId);
     }
 
     /**
-     * @description Controls access to a user's favorite series.
+     * @description Rules for a user's favorite series.
      * @path /users/{userId}/favoriteSeries/{seriesId}
-     * @allow (create, get, list, update, delete) - Authenticated user can only access their own favorite series.
-     * @deny (create, get, list, update, delete) - If the authenticated user is not the owner.
-     * @principle Enforces document ownership for managing user's favorite series.
+     * @allow (create) User 'JXSnPO86PCfZIkIimKWwd0wDCgC2' can add a series to their favorites.
+     * @deny (create) User 'someOtherUserId' cannot add a series to the favorites of 'JXSnPO86PCfZIkIimKWwd0wDCgC2'.
+     * @allow (get, update, delete) User 'JXSnPO86PCfZIkIimKWwd0wDCgC2' can get, update, and delete their own favorite series.
+     * @deny (get, update, delete) User 'someOtherUserId' cannot get, update, or delete the favorite series of 'JXSnPO86PCfZIkIimKWwd0wDCgC2'.
+     * @principle Enforces document ownership for writes. Allows owner to read their data.
      */
     match /users/{userId}/favoriteSeries/{seriesId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
-
       allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
-            allow create: if isSignedIn() && isOwner(userId);
+      allow list: if false;
+      allow create: if isOwner(userId);
       allow update: if isOwner(userId);
       allow delete: if isOwner(userId);
     }
 
     /**
-     * @description Controls access to a user's watch progress.
+     * @description Rules for a user's watch progress.
      * @path /users/{userId}/watchProgress/{mediaId}
-     * @allow (create, get, list, update, delete) - Authenticated user can only access their own watch progress.
-     * @deny (create, get, list, update, delete) - If the authenticated user is not the owner.
-     * @principle Enforces document ownership for managing user's watch progress.
+     * @allow (create) User 'JXSnPO86PCfZIkIimKWwd0wDCgC2' can create their watch progress.
+     * @deny (create) User 'someOtherUserId' cannot create watch progress for 'JXSnPO86PCfZIkIimKWwd0wDCgC2'.
+     * @allow (get, update, delete) User 'JXSnPO86PCfZIkIimKWwd0wDCgC2' can get, update, and delete their own watch progress.
+     * @deny (get, update, delete) User 'someOtherUserId' cannot get, update, or delete the watch progress of 'JXSnPO86PCfZIkIimKWwd0wDCgC2'.
+     * @principle Enforces document ownership for writes. Allows owner to read their data.
      */
     match /users/{userId}/watchProgress/{mediaId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
-
       allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
-            allow create: if isSignedIn() && isOwner(userId);
+      allow list: if false;
+      allow create: if isOwner(userId);
       allow update: if isOwner(userId);
       allow delete: if isOwner(userId);
     }
 
     /**
-     * @description Controls access to movie documents. Publicly readable, writable by authorized services.
+     * @description Rules for movies. Public read, restricted write.
      * @path /movies/{movieId}
-     * @allow (get, list) - Anyone can read movie data.
-     * @deny (create, update, delete) - Only authorized services can modify movie data.
-     * @principle Allows public read access to movie data while restricting write access.
+     * @allow (get, list) Any user can read movie data.
+     * @deny (create, update, delete) No user can create, update, or delete movie data.
+     * @principle Public read with owner-only (admin) writes.
      */
     match /movies/{movieId} {
       allow get: if true;
       allow list: if true;
-      allow create: if false; // TODO: Add service account check
-      allow update: if false; // TODO: Add service account check
-      allow delete: if false; // TODO: Add service account check
+      allow create: if false; // TODO: Add admin validation once implemented.
+      allow update: if false; // TODO: Add admin validation once implemented.
+      allow delete: if false; // TODO: Add admin validation once implemented.
     }
 
     /**
-     * @description Controls access to series documents. Publicly readable, writable by authorized services.
+     * @description Rules for series. Public read, restricted write.
      * @path /series/{seriesId}
-     * @allow (get, list) - Anyone can read series data.
-     * @deny (create, update, delete) - Only authorized services can modify series data.
-     * @principle Allows public read access to series data while restricting write access.
+     * @allow (get, list) Any user can read series data.
+     * @deny (create, update, delete) No user can create, update, or delete series data.
+     * @principle Public read with owner-only (admin) writes.
      */
     match /series/{seriesId} {
       allow get: if true;
       allow list: if true;
-      allow create: if false; // TODO: Add service account check
-      allow update: if false; // TODO: Add service account check
-      allow delete: if false; // TODO: Add service account check
+      allow create: if false; // TODO: Add admin validation once implemented.
+      allow update: if false; // TODO: Add admin validation once implemented.
+      allow delete: if false; // TODO: Add admin validation once implemented.
     }
 
     /**
-     * @description Controls access to genre documents. Publicly readable, writable by authorized services.
+     * @description Rules for genres. Public read, restricted write.
      * @path /genres/{genreId}
-     * @allow (get, list) - Anyone can read genre data.
-     * @deny (create, update, delete) - Only authorized services can modify genre data.
-     * @principle Allows public read access to genre data while restricting write access.
+     * @allow (get, list) Any user can read genre data.
+     * @deny (create, update, delete) No user can create, update, or delete genre data.
+     * @principle Public read with owner-only (admin) writes.
      */
     match /genres/{genreId} {
       allow get: if true;
       allow list: if true;
-      allow create: if false; // TODO: Add service account check
-      allow update: if false; // TODO: Add service account check
-      allow delete: if false; // TODO: Add service account check
+      allow create: if false; // TODO: Add admin validation once implemented.
+      allow update: if false; // TODO: Add admin validation once implemented.
+      allow delete: if false; // TODO: Add admin validation once implemented.
     }
 
-     /**
-      * @description Controls access to license documents.
-      * @path /licenses/{licenseKey}
-      * @allow (get) - Anyone can read license data.
-      * @deny (create, update, delete) - Only authorized services can modify license data.
-      */
-     match /licenses/{licenseKey} {
-       allow get: if false; // TODO: Review and potentially restrict read access
-       allow list: if false; // No listing allowed
-       allow create: if false; // TODO: Add service account check
-       allow update: if false; // TODO: Add service account check
-       allow delete: if false; // TODO: Add service account check
-     }
+    /**
+     * @description Rules for licenses. Public read, restricted write.
+     * @path /licenses/{licenseKey}
+     * @allow (get, list) Any user can read license data.
+     * @deny (create, update, delete) No user can create, update, or delete license data.
+     * @principle Public read with owner-only (admin) writes.
+     */
+    match /licenses/{licenseKey} {
+      allow get: if true;
+      allow list: if true;
+      allow create: if false; // TODO: Add admin validation once implemented.
+      allow update: if false; // TODO: Add admin validation once implemented.
+      allow delete: if false; // TODO: Add admin validation once implemented.
+    }
   }
 }
