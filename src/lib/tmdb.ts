@@ -1,5 +1,5 @@
 import { TMDB_API_KEY, TMDB_API_URL } from './config';
-import type { PaginatedResponse, Media, MediaDetails } from './types';
+import type { PaginatedResponse, Media, MediaDetails, Season } from './types';
 
 async function fetchFromTMDB<T>(endpoint: string, params: string = ''): Promise<T> {
   const url = `${TMDB_API_URL}/${endpoint}?api_key=${TMDB_API_KEY}&language=nl-BE&${params}`;
@@ -18,7 +18,12 @@ export async function getTrending(mediaType: 'movie' | 'tv' | 'all' = 'all', tim
 }
 
 export async function getMediaDetails(mediaType: 'movie' | 'tv', id: string): Promise<MediaDetails> {
-  return fetchFromTMDB<MediaDetails>(`${mediaType}/${id}`, 'append_to_response=credits');
+  const appendToResponse = mediaType === 'tv' ? 'credits,videos,seasons' : 'credits,videos';
+  return fetchFromTMDB<MediaDetails>(`${mediaType}/${id}`, `append_to_response=${appendToResponse}`);
+}
+
+export async function getSeasonDetails(seriesId: string, seasonNumber: string): Promise<Season> {
+    return fetchFromTMDB<Season>(`tv/${seriesId}/season/${seasonNumber}`);
 }
 
 export async function searchMedia(query: string): Promise<PaginatedResponse<Media>> {

@@ -31,6 +31,24 @@ export interface CastMember {
   profile_path: string | null;
 }
 
+export interface Season {
+  id: number;
+  name: string;
+  season_number: number;
+  episode_count: number;
+  air_date: string;
+  poster_path: string | null;
+  episodes?: Episode[];
+}
+
+export interface Episode {
+    id: number;
+    name: string;
+    overview: string;
+    episode_number: number;
+    still_path: string | null;
+}
+
 export interface MediaDetails extends Omit<Media, 'genre_ids' | 'name'> {
   genres: Genre[];
   credits?: {
@@ -45,4 +63,5 @@ export interface MediaDetails extends Omit<Media, 'genre_ids' | 'name'> {
   episode_run_time?: number[];
   number_of_seasons?: number;
   first_air_date?: string;
+  seasons?: Season[];
 }
