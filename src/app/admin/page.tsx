@@ -13,6 +13,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { Terminal } from 'lucide-react';
 
 
 function generateLicenseKey() {
@@ -47,38 +49,6 @@ export default function AdminPage() {
     const { data: licenses, isLoading: licensesLoading } = useCollection(licensesRef);
 
 
-    useEffect(() => {
-        // This effect handles redirection based on auth state and user role.
-        // It waits until both user and profile loading are complete.
-        if (isUserLoading || isProfileLoading) {
-            // Still loading, do nothing.
-            return;
-        }
-
-        if (!user) {
-            // Not logged in, redirect to login.
-            router.push('/login');
-            return;
-        }
-
-        if (userProfile) {
-            // We have a user and a profile, now check the role.
-            if (userProfile.role !== 'admin') {
-                // Logged in but not an admin, show toast and redirect.
-                toast({ title: "Geen toegang", description: "U heeft geen toestemming om deze pagina te bekijken.", variant: 'destructive' });
-                router.push('/account');
-            }
-            // If userProfile.role IS 'admin', we do nothing and the page renders.
-        } else {
-             // We have a user, but no profile was found after loading. This is an edge case.
-             // This can happen if the user document doesn't exist in Firestore.
-             toast({ title: "Profiel niet gevonden", description: "Kon uw gebruikersprofiel niet laden.", variant: 'destructive' });
-             router.push('/account');
-        }
-
-    }, [user, isUserLoading, userProfile, isProfileLoading, router, toast]);
-
-
     const handleCreateLicense = () => {
         if (!newLicenseKey.trim()) {
             toast({ title: "Fout", description: "Licentiecode mag niet leeg zijn.", variant: 'destructive'});
@@ -110,14 +80,46 @@ export default function AdminPage() {
     }
 
 
-    // Show a loading screen while we verify user and role. This prevents the "flash".
+    // Show a loading screen while we verify user and role.
     if (isUserLoading || isProfileLoading) {
         return <div className="flex justify-center items-center h-screen"><Spinner size="large" /></div>;
     }
 
-    // After loading, if the user isn't an admin, render nothing while the redirect happens.
-    if (!user || userProfile?.role !== 'admin') {
+    // After loading, check for authorization.
+    if (!user) {
+        // Not logged in, redirect to login. This can be done immediately.
+        router.push('/login');
         return null;
+    }
+
+    if (!userProfile) {
+        // User is logged in, but no profile was found. This is a critical error state.
+        return (
+            <div className="flex justify-center items-center h-screen">
+                <Alert variant="destructive" className="max-w-md">
+                    <Terminal className="h-4 w-4" />
+                    <AlertTitle>Profiel niet gevonden</AlertTitle>
+                    <AlertDescription>
+                        Kon uw gebruikersprofiel niet laden. Probeer opnieuw in te loggen.
+                    </AlertDescription>
+                </Alert>
+            </div>
+        );
+    }
+    
+    if (userProfile.role !== 'admin') {
+        // User is logged in, has a profile, but is not an admin.
+        return (
+            <div className="flex justify-center items-center h-screen">
+                <Alert variant="destructive" className="max-w-md">
+                    <Terminal className="h-4 w-4" />
+                    <AlertTitle>Geen Toegang</AlertTitle>
+                    <AlertDescription>
+                        U heeft geen toestemming om deze pagina te bekijken.
+                    </AlertDescription>
+                </Alert>
+            </div>
+        );
     }
 
     // Only if all checks pass, render the admin page content.
