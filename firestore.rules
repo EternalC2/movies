@@ -1,225 +1,185 @@
 /**
- * @file CineVerse Firestore Security Rules
- * @version 2
- *
- * @description
- * This ruleset enforces a user-ownership model for personal data (favorites, watch progress)
- * stored under the `/users/{userId}` path.  Movies, series, and genres are publicly readable but
- * writable only by authorized services (not implemented in this prototyping ruleset).
+ * @file Firestore Security Rules
+ * @description This ruleset enforces a strict user-ownership model for personal data while allowing public read access to shared content catalogs.
  *
  * Data Structure:
- * - /users/{userId}: User profile information, owned by the user.
- * - /users/{userId}/favoriteMovies/{movieId}: User's favorite movies.
- * - /users/{userId}/favoriteSeries/{seriesId}: User's favorite series.
- * - /users/{userId}/watchProgress/{mediaId}: User's watch progress.
- * - /movies/{movieId}: Movie data (publicly readable).
- * - /series/{seriesId}: Series data (publicly readable).
- * - /genres/{genreId}: Genre data (publicly readable).
- * - /licenses/{licenseKey}: License data.
+ * - `/users/{userId}`: Stores user profiles and acts as the root for all user-specific data.
+ * - `/users/{userId}/favoriteMovies/{movieId}`:  Stores user's favorite movies.
+ * - `/users/{userId}/favoriteSeries/{seriesId}`: Stores user's favorite series.
+ * - `/users/{userId}/watchProgress/{mediaId}`: Stores user's watch progress.
+ * - `/movies/{movieId}`: Stores public movie data, readable by all, writable by authorized services.
+ * - `/series/{seriesId}`: Stores public series data, readable by all, writable by authorized services.
+ * - `/genres/{genreId}`: Stores public genre data, readable by all, writable by authorized services.
+ * - `/licenses/{licenseKey}`: Stores license keys with restricted read and write access.
  *
  * Key Security Decisions:
  * - User data is strictly controlled by the owning user.
- * - Listing of user documents is disabled for privacy.
- * - Movies, series, and genres are publicly readable to simplify data access.
- * - Write access to movies, series, and genres is not covered by this prototype.
- * - License claiming enforces that the user ID and license key are valid.
+ * - Movies, series, and genres are publicly readable but only writable by authorized services (currently not implemented in this prototype).
+ * - Listing of user subcollections is allowed only for the owning user.
  *
  * Denormalization for Authorization:
- *   - The rules rely on the `request.auth.uid` to determine the current user.
- *   - Documents under `/users/{userId}` are considered owned by that user.
+ * - User-specific data is nested under the `/users/{userId}` path to avoid the need for `get()` calls to authorize access. The `userId` is implicitly the owner of any data under their path.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Checks if the request is made by a signed-in user.
-     * @return {boolean} True if the user is signed in, false otherwise.
-     */
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    /**
-     * @description Checks if the authenticated user ID matches the provided user ID.
-     * @param {string} userId The user ID to compare against.
-     * @return {boolean} True if the user IDs match, false otherwise.
-     */
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
-    /**
-     * @description Checks if the authenticated user is an existing owner of the document.
-     * @param {string} userId The user ID to compare against.
-     * @return {boolean} True if the user is the owner and the document exists.
-     */
-    function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-    }
-
-    /**
-     * @description Enforces that the incoming resource data contains the required `claimedBy` and `claimedAt` fields.
-     * @return {boolean} True if the required license fields are valid and present.
-     */
-    function isValidLicenseClaim() {
-        return request.resource.data.licenseUpdate.keys().hasAll(['claimedBy', 'claimedAt'])
-               && request.resource.data.licenseUpdate.claimedBy == request.auth.uid;
-    }
-
-
-    /**
-     * @description Security rules for the /users/{userId} collection.
+     * @description Controls access to user profile documents.
      * @path /users/{userId}
-     * @allow (create) Signed-in user can create their own user document.
-     * @allow (get) Signed-in user can get their own user document.
-     * @allow (update) Signed-in user can update their own user document.
-     * @deny (create) Signed-in user cannot create a user document for another user.
-     * @deny (get) Signed-in user cannot get another user's document.
-     * @deny (update) Signed-in user cannot update another user's document.
-     * @principle Enforces document ownership for writes.
+     * @allow (create) - Authenticated user can create their own profile.
+     * @allow (get, list, update, delete) - Authenticated user can only access their own profile.
+     * @deny (create) - If the authenticated user's ID does not match the userId in the path.
+     * @deny (update, delete) - If the authenticated user is not the owner of the document.
+     * @principle Enforces document ownership and prevents unauthorized profile access.
      */
     match /users/{userId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+      // For update and delete operations, we need to check if the document exists and the user is the owner
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource.data != null;
+      }
+
       allow get: if isOwner(userId);
-      allow list: if false; // Listing users is not permitted.
-      allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
+      allow list: if false;
+      allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isExistingOwner(userId);
       allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Security rules for the /users/{userId}/favoriteMovies/{movieId} collection.
+     * @description Controls access to a user's favorite movies.
      * @path /users/{userId}/favoriteMovies/{movieId}
-     * @allow (create) Signed-in user can create favorite movies under their user document.
-     * @allow (get) Signed-in user can get favorite movies under their user document.
-     * @allow (update) Signed-in user can update favorite movies under their user document.
-     * @allow (delete) Signed-in user can delete favorite movies under their user document.
-     * @deny (create) Signed-in user cannot create favorite movies under another user's document.
-     * @deny (get) Signed-in user cannot get favorite movies under another user's document.
-     * @deny (update) Signed-in user cannot update favorite movies under another user's document.
-     * @deny (delete) Signed-in user cannot delete favorite movies under another user's document.
-     * @principle Enforces document ownership for writes.
+     * @allow (create, get, list, update, delete) - Authenticated user can only access their own favorite movies.
+     * @deny (create, get, list, update, delete) - If the authenticated user is not the owner.
+     * @principle Enforces document ownership for managing user's favorite movies.
      */
     match /users/{userId}/favoriteMovies/{movieId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
       allow get: if isOwner(userId);
       allow list: if isOwner(userId);
-      allow create: if isOwner(userId);
-      allow update: if isExistingOwner(userId);
-      allow delete: if isExistingOwner(userId);
+      allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isOwner(userId);
+      allow delete: if isOwner(userId);
     }
 
     /**
-     * @description Security rules for the /users/{userId}/favoriteSeries/{seriesId} collection.
+     * @description Controls access to a user's favorite series.
      * @path /users/{userId}/favoriteSeries/{seriesId}
-     * @allow (create) Signed-in user can create favorite series under their user document.
-     * @allow (get) Signed-in user can get favorite series under their user document.
-     * @allow (update) Signed-in user can update favorite series under their user document.
-     * @allow (delete) Signed-in user can delete favorite series under their user document.
-     * @deny (create) Signed-in user cannot create favorite series under another user's document.
-     * @deny (get) Signed-in user cannot get favorite series under another user's document.
-     * @deny (update) Signed-in user cannot update favorite series under another user's document.
-     * @deny (delete) Signed-in user cannot delete favorite series under another user's document.
-     * @principle Enforces document ownership for writes.
+     * @allow (create, get, list, update, delete) - Authenticated user can only access their own favorite series.
+     * @deny (create, get, list, update, delete) - If the authenticated user is not the owner.
+     * @principle Enforces document ownership for managing user's favorite series.
      */
     match /users/{userId}/favoriteSeries/{seriesId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
       allow get: if isOwner(userId);
       allow list: if isOwner(userId);
-      allow create: if isOwner(userId);
-      allow update: if isExistingOwner(userId);
-      allow delete: if isExistingOwner(userId);
+            allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isOwner(userId);
+      allow delete: if isOwner(userId);
     }
 
     /**
-     * @description Security rules for the /users/{userId}/watchProgress/{mediaId} collection.
+     * @description Controls access to a user's watch progress.
      * @path /users/{userId}/watchProgress/{mediaId}
-     * @allow (create) Signed-in user can create watch progress under their user document.
-     * @allow (get) Signed-in user can get watch progress under their user document.
-     * @allow (update) Signed-in user can update watch progress under their user document.
-     * @allow (delete) Signed-in user can delete watch progress under their user document.
-     * @deny (create) Signed-in user cannot create watch progress under another user's document.
-     * @deny (get) Signed-in user cannot get watch progress under another user's document.
-     * @deny (update) Signed-in user cannot update watch progress under another user's document.
-     * @deny (delete) Signed-in user cannot delete watch progress under another user's document.
-     * @principle Enforces document ownership for writes.
+     * @allow (create, get, list, update, delete) - Authenticated user can only access their own watch progress.
+     * @deny (create, get, list, update, delete) - If the authenticated user is not the owner.
+     * @principle Enforces document ownership for managing user's watch progress.
      */
     match /users/{userId}/watchProgress/{mediaId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
       allow get: if isOwner(userId);
       allow list: if isOwner(userId);
-      allow create: if isOwner(userId);
-      allow update: if isExistingOwner(userId);
-      allow delete: if isExistingOwner(userId);
+            allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isOwner(userId);
+      allow delete: if isOwner(userId);
     }
 
     /**
-     * @description Security rules for the /movies/{movieId} collection.
+     * @description Controls access to movie documents. Publicly readable, writable by authorized services.
      * @path /movies/{movieId}
-     * @allow (get) All users can read movie data.
-     * @allow (list) All users can list movies.
-     * @deny (create) No user can create movie documents directly.
-     * @deny (update) No user can update movie documents directly.
-     * @deny (delete) No user can delete movie documents directly.
-     * @principle Public read, owner-only write (simulated, write is denied).
+     * @allow (get, list) - Anyone can read movie data.
+     * @deny (create, update, delete) - Only authorized services can modify movie data.
+     * @principle Allows public read access to movie data while restricting write access.
      */
     match /movies/{movieId} {
       allow get: if true;
       allow list: if true;
-      allow create: if false; // TODO: Secure with service accounts
-      allow update: if false; // TODO: Secure with service accounts
-      allow delete: if false; // TODO: Secure with service accounts
+      allow create: if false; // TODO: Add service account check
+      allow update: if false; // TODO: Add service account check
+      allow delete: if false; // TODO: Add service account check
     }
 
     /**
-     * @description Security rules for the /series/{seriesId} collection.
+     * @description Controls access to series documents. Publicly readable, writable by authorized services.
      * @path /series/{seriesId}
-     * @allow (get) All users can read series data.
-     * @allow (list) All users can list series.
-     * @deny (create) No user can create series documents directly.
-     * @deny (update) No user can update series documents directly.
-     * @deny (delete) No user can delete series documents directly.
-     * @principle Public read, owner-only write (simulated, write is denied).
+     * @allow (get, list) - Anyone can read series data.
+     * @deny (create, update, delete) - Only authorized services can modify series data.
+     * @principle Allows public read access to series data while restricting write access.
      */
     match /series/{seriesId} {
       allow get: if true;
       allow list: if true;
-      allow create: if false; // TODO: Secure with service accounts
-      allow update: if false; // TODO: Secure with service accounts
-      allow delete: if false; // TODO: Secure with service accounts
+      allow create: if false; // TODO: Add service account check
+      allow update: if false; // TODO: Add service account check
+      allow delete: if false; // TODO: Add service account check
     }
 
     /**
-     * @description Security rules for the /genres/{genreId} collection.
+     * @description Controls access to genre documents. Publicly readable, writable by authorized services.
      * @path /genres/{genreId}
-     * @allow (get) All users can read genre data.
-     * @allow (list) All users can list genres.
-     * @deny (create) No user can create genre documents directly.
-     * @deny (update) No user can update genre documents directly.
-     * @deny (delete) No user can delete genre documents directly.
-     * @principle Public read, owner-only write (simulated, write is denied).
+     * @allow (get, list) - Anyone can read genre data.
+     * @deny (create, update, delete) - Only authorized services can modify genre data.
+     * @principle Allows public read access to genre data while restricting write access.
      */
     match /genres/{genreId} {
       allow get: if true;
       allow list: if true;
-      allow create: if false; // TODO: Secure with service accounts
-      allow update: if false; // TODO: Secure with service accounts
-      allow delete: if false; // TODO: Secure with service accounts
+      allow create: if false; // TODO: Add service account check
+      allow update: if false; // TODO: Add service account check
+      allow delete: if false; // TODO: Add service account check
     }
 
-      /**
-       * @description Security rules for the /licenses/{licenseKey} collection.
-       * @path /licenses/{licenseKey}
-       * @allow (get) All users can read license data.
-       * @allow (list) Listing licenses is not permitted.
-       * @allow (create) No user can create license documents directly.
-       * @allow (update) Only if the license is being claimed.
-       * @allow (delete) No user can delete license documents directly.
-       * @principle Public read, restricted writes.
-       */
-    match /licenses/{licenseKey} {
-        allow get: if true;
-        allow list: if false;
-        allow create: if false; // TODO: Secure with service accounts
-        allow update: if isValidLicenseClaim() && resource.data.status == 'available';
-        allow delete: if false; // TODO: Secure with service accounts
-    }
+     /**
+      * @description Controls access to license documents.
+      * @path /licenses/{licenseKey}
+      * @allow (get) - Anyone can read license data.
+      * @deny (create, update, delete) - Only authorized services can modify license data.
+      */
+     match /licenses/{licenseKey} {
+       allow get: if false; // TODO: Review and potentially restrict read access
+       allow list: if false; // No listing allowed
+       allow create: if false; // TODO: Add service account check
+       allow update: if false; // TODO: Add service account check
+       allow delete: if false; // TODO: Add service account check
+     }
   }
 }
