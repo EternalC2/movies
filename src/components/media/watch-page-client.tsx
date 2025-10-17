@@ -64,7 +64,7 @@ export function WatchPageClient({ mediaId, mediaType, seasonNumber, episodeNumbe
     if (mediaType === 'tv') {
         const s = seasonNumber || '1';
         const e = episodeNumber || '1';
-        url = `${server.url}/${mediaType}/${mediaId}/${s}/${e}`;
+        url = `${url}/${s}/${e}`;
     }
     setEmbedUrl(url);
   }, [selectedServer, mediaId, mediaType, seasonNumber, episodeNumber]);
@@ -102,7 +102,7 @@ export function WatchPageClient({ mediaId, mediaType, seasonNumber, episodeNumbe
         seasonNumber={seasonNumber}
         episodeNumber={episodeNumber}
       />
-      <header className="p-4 flex items-center justify-between z-10 bg-black/50 backdrop-blur-sm absolute top-0 left-0 right-0">
+      <header className="p-4 flex items-center justify-between z-10 bg-gradient-to-b from-black/80 to-transparent">
         <Link href={`/${mediaType}/${mediaId}`} passHref>
           <Button variant="ghost" className="text-white hover:bg-white/10 hover:text-white">
             <ArrowLeft className="mr-2 h-4 w-4" />
@@ -122,7 +122,7 @@ export function WatchPageClient({ mediaId, mediaType, seasonNumber, episodeNumbe
         </div>
          <div className="w-24"></div> {/* Spacer to balance the back button */}
       </header>
-      <div className="flex-grow w-full h-full pt-16">
+      <div className="flex-grow w-full h-full -mt-16">
         {embedUrl && (
             <iframe
             key={embedUrl} // IMPORTANT: Change key to force iframe reload
