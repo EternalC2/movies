@@ -20,7 +20,7 @@ export function Header() {
         <div className="mr-auto md:mr-4 flex">
           <Link href="/" className="flex items-center space-x-2">
             <Clapperboard className="h-6 w-6 text-primary" />
-            <span className="font-bold font-headline text-xl">CineVerse</span>
+            <span className="font-bold font-headline text-xl">Eternal Movies</span>
           </Link>
         </div>
         <nav className="hidden md:flex items-center space-x-6 text-sm font-medium">
