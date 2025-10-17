@@ -150,7 +150,7 @@
   "auth": {
     "providers": [
       "password",
-      "anonymous"
+      "google.com"
     ]
   },
   "firestore": {
@@ -260,6 +260,6 @@
         }
       }
     ],
-    "reasoning": "The Firestore structure is designed to ensure security, scalability, and ease of debugging, following the principles of Authorization Independence, Clarity of Intent, and DBAC. It leverages denormalization and structural segregation to optimize security rules and query performance.\n\nAuthorization Independence is achieved by avoiding `get()` calls in security rules. User-specific data (favorites) are stored under the `/users/{userId}` path, which eliminates the need to fetch parent document data to authorize access.  Movies and Series collections are globally accessible for reading but restricted for modification, ensuring that only authorized services can update them.\n\nThe structure supports QAPs through structural segregation. Movies and series data are separated into distinct collections.  User-specific favorite movies and series are stored within the user's document. This separation enables secure list operations, preventing unauthorized access to user data or modification of movies and series data.\n\nThe design uses hierarchical paths for user-owned data (`/users/{userId}/favoriteMovies/{movieId}`) to represent the `User 1:N Movie` relationship, which provides a clear ownership model. The movie and series data is globally available, allowing for easy listing and retrieval without complex security rules.\n"
+    "reasoning": "The Firestore structure is designed to ensure security, scalability, and ease of debugging, following the principles of Authorization Independence, Clarity of Intent, and DBAC. It leverages denormalization and structural segregation to optimize security rules and query performance.\\n\\nAuthorization Independence is achieved by avoiding `get()` calls in security rules. User-specific data (favorites) are stored under the `/users/{userId}` path, which eliminates the need to fetch parent document data to authorize access.  Movies and Series collections are globally accessible for reading but restricted for modification, ensuring that only authorized services can update them.\\n\\nThe structure supports QAPs through structural segregation. Movies and series data are separated into distinct collections.  User-specific favorite movies and series are stored within the user's document. This separation enables secure list operations, preventing unauthorized access to user data or modification of movies and series data.\\n\\nThe design uses hierarchical paths for user-owned data (`/users/{userId}/favoriteMovies/{movieId}`) to represent the `User 1:N Movie` relationship, which provides a clear ownership model. The movie and series data is globally available, allowing for easy listing and retrieval without complex security rules.\\n"
   }
 }
