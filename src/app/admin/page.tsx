@@ -2,19 +2,17 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
-import { doc, collection, addDoc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Spinner } from '@/components/ui/spinner';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { Terminal } from 'lucide-react';
+import { Terminal, Copy } from 'lucide-react';
 
 
 function generateLicenseKey() {
@@ -45,10 +43,6 @@ export default function AdminPage() {
     
     const { data: userProfile, isLoading: isProfileLoading } = useDoc(userRef);
 
-    const licensesRef = useMemoFirebase(() => collection(firestore, 'licenses'), [firestore]);
-    const { data: licenses, isLoading: licensesLoading } = useCollection(licensesRef);
-
-
     const handleCreateLicense = () => {
         if (!newLicenseKey.trim()) {
             toast({ title: "Fout", description: "Licentiecode mag niet leeg zijn.", variant: 'destructive'});
@@ -76,6 +70,14 @@ export default function AdminPage() {
             errorEmitter.emit('permission-error', contextualError);
         }).finally(() => {
             setLoading(false);
+        });
+    }
+
+    const handleCopy = () => {
+        navigator.clipboard.writeText(newLicenseKey);
+        toast({
+            title: "Gekopieerd!",
+            description: "De licentiecode is naar je klembord gekopieerd.",
         });
     }
 
@@ -137,41 +139,11 @@ export default function AdminPage() {
                         value={newLicenseKey}
                         onChange={(e) => setNewLicenseKey(e.target.value)}
                         placeholder="Voer een licentiecode in of genereer er een"
+                        className="font-mono"
                     />
                     <Button onClick={() => setNewLicenseKey(generateLicenseKey())} variant="outline">Genereer</Button>
+                    <Button onClick={handleCopy} variant="outline" size="icon"><Copy className="h-4 w-4"/></Button>
                     <Button onClick={handleCreateLicense} disabled={loading}>{loading ? 'Bezig...' : 'Aanmaken'}</Button>
-                </CardContent>
-            </Card>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle>Bestaande Licenties</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    {licensesLoading ? <Spinner /> : (
-                         <Table>
-                            <TableHeader>
-                                <TableRow>
-                                <TableHead>Licentiecode</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead>Geclaimd door</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {licenses?.map((license) => (
-                                    <TableRow key={license.id}>
-                                        <TableCell className="font-mono">{license.id}</TableCell>
-                                        <TableCell>
-                                            <Badge variant={license.status === 'claimed' ? 'destructive' : 'default'}>
-                                                {license.status}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell>{license.claimedBy || '-'}</TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    )}
                 </CardContent>
             </Card>
         </div>
