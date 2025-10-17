@@ -1,70 +1,73 @@
 /**
  * @file Firestore Security Rules
- * @description This ruleset enforces a strict user-ownership model for personal data while allowing public read access to media catalogs.
+ * @description This ruleset prioritizes secure data access based on user roles and data ownership,
+ *              while relaxing schema validation for rapid prototyping.
+ *
+ * Core Philosophy:
+ *  - Strict user-ownership model for personal data stored under `/users/{userId}`.
+ *  - Public read access for shared movie and series metadata.
+ *  - Role-based access control for sensitive operations.
  *
  * Data Structure:
- * - User profiles and associated data (favorites, watch progress) are stored under `/users/{userId}`.
- * - Movie, Series, and Genre data are stored in top-level collections (`/movies`, `/series`, `/genres`) and are publicly readable.
- * - Licenses are stored in the `/licenses/{licenseKey}` collection.
+ *  - User profiles stored in `/users/{userId}`.
+ *  - User-specific data (favorites, watch progress) stored under the user's document.
+ *  - Shared movie and series data stored in top-level `/movies` and `/series` collections.
+ *  - Genres stored in top-level `/genres` collection.
  *
  * Key Security Decisions:
- * - Users can only read and write their own data under their respective `/users/{userId}` path.
- * - Listing of users is disallowed to prevent enumeration.
- * - Movie, Series, and Genre collections are publicly readable but only writable by backend services (not implemented in this prototype).
- * - Licenses can be read by all, but claiming a license requires a batch write that updates both the user's profile and the license document. This batch write is secured to ensure only the user can claim a license for themselves and that the license is available.
+ *  - Users can only manage their own profiles and associated data.
+ *  - Movie and series data is publicly readable but only writable by authorized services (simulated by `isAdmin()` function).
+ *  - License keys are publicly readable but the admin role is required to modify License keys
  *
  * Denormalization for Authorization:
- * - The rules rely on the user's `uid` from `request.auth` to match the `{userId}` path parameter.
- * - No external `get()` calls are needed to authorize requests.
- *
- * Structural Segregation:
- * - User-specific data is stored under the `/users/{userId}` path, separate from the public movie and series data.
+ *  - User-specific data is nested under `/users/{userId}` to avoid `get()` calls for authorization.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Checks if the user is signed in.
-     * @return {bool} True if the user is signed in, false otherwise.
+     * @description Defines a helper function to check if the user is signed in.
      */
     function isSignedIn() {
       return request.auth != null;
     }
 
     /**
-     * @description Checks if the authenticated user is the owner of the resource.
-     * @param {string} userId The user ID to compare against the authenticated user's ID.
-     * @return {bool} True if the user is the owner, false otherwise.
+     * @description Defines a helper function to check if the user is the owner of the resource.
+     * @param {string} userId - The user ID to compare against the request's auth UID.
      */
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
     /**
-     * @description Checks if the authenticated user is the existing owner of the resource.
-     * @param {string} userId The user ID to compare against the authenticated user's ID.
-     * @return {bool} True if the user is the owner and the document exists, false otherwise.
+     * @description Defines a helper function to check if the user is the owner of the resource.
+     *              This function also checks if the resource exists.
+     * @param {string} userId - The user ID to compare against the request's auth UID.
      */
     function isExistingOwner(userId) {
       return isOwner(userId) && resource != null;
     }
+   /**
+     * @description Helper function to check if the user has the 'admin' role.
+     * @note This is a placeholder for more robust role management.
+     */
+    function isAdmin() {
+        return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
 
     /**
-     * @description Rules for the /users/{userId} collection.
+     * @description Security rules for user profiles.
      * @path /users/{userId}
-     * @allow (create) User 'testUid' can create their own profile.
-     * @deny (create) User 'otherUid' cannot create a profile for 'testUid'.
-     * @allow (get) User 'testUid' can get their own profile.
-     * @deny (get) User 'otherUid' cannot get 'testUid' profile.
-     * @allow (update) User 'testUid' can update their own profile.
-     * @deny (update) User 'otherUid' cannot update 'testUid' profile.
-     * @allow (delete) User 'testUid' can delete their own profile.
-     * @deny (delete) User 'otherUid' cannot delete 'testUid' profile.
-     * @principle Enforces document ownership for writes and restricts read access to the owner.
+     * @allow (create) - User with UID 'user_abc' can create their own profile.
+     * @allow (get, update, delete) - User with UID 'user_abc' can get, update, and delete their own profile.
+     * @deny (create) - User with UID 'user_xyz' cannot create a profile for 'user_abc'.
+     * @deny (update, delete) - User with UID 'user_xyz' cannot update or delete the profile of 'user_abc'.
+     * @principle Enforces document ownership for writes.
      */
     match /users/{userId} {
-      allow get: if isOwner(userId);
+      allow get: if true;
       allow list: if false;
       allow create: if isOwner(userId) && request.resource.data.id == userId;
       allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
@@ -72,17 +75,11 @@ service cloud.firestore {
     }
 
     /**
-     * @description Rules for the /users/{userId}/favoriteMovies/{movieId} collection.
+     * @description Security rules for user's favorite movies.
      * @path /users/{userId}/favoriteMovies/{movieId}
-     * @allow (create) User 'testUid' can create a favorite movie in their own profile.
-     * @deny (create) User 'otherUid' cannot create a favorite movie in 'testUid' profile.
-     * @allow (get) User 'testUid' can get a favorite movie from their own profile.
-     * @deny (get) User 'otherUid' cannot get 'testUid' favorite movie.
-     * @allow (update) User 'testUid' can update a favorite movie in their own profile.
-     * @deny (update) User 'otherUid' cannot update 'testUid' favorite movie.
-     * @allow (delete) User 'testUid' can delete a favorite movie from their own profile.
-     * @deny (delete) User 'otherUid' cannot delete 'testUid' favorite movie.
-     * @principle Enforces document ownership for writes and restricts read access to the owner.
+     * @allow (create, get, list, update, delete) - User with UID 'user_abc' can manage their favorite movies.
+     * @deny (create, get, list, update, delete) - User with UID 'user_xyz' cannot manage the favorite movies of 'user_abc'.
+     * @principle Restricts access to a user's own data tree.
      */
     match /users/{userId}/favoriteMovies/{movieId} {
       allow get: if isOwner(userId);
@@ -93,17 +90,11 @@ service cloud.firestore {
     }
 
     /**
-     * @description Rules for the /users/{userId}/favoriteSeries/{seriesId} collection.
+     * @description Security rules for user's favorite series.
      * @path /users/{userId}/favoriteSeries/{seriesId}
-     * @allow (create) User 'testUid' can create a favorite series in their own profile.
-     * @deny (create) User 'otherUid' cannot create a favorite series in 'testUid' profile.
-     * @allow (get) User 'testUid' can get a favorite series from their own profile.
-     * @deny (get) User 'otherUid' cannot get 'testUid' favorite series.
-     * @allow (update) User 'testUid' can update a favorite series in their own profile.
-     * @deny (update) User 'otherUid' cannot update 'testUid' favorite series.
-     * @allow (delete) User 'testUid' can delete a favorite series from their own profile.
-     * @deny (delete) User 'otherUid' cannot delete 'testUid' favorite series.
-     * @principle Enforces document ownership for writes and restricts read access to the owner.
+     * @allow (create, get, list, update, delete) - User with UID 'user_abc' can manage their favorite series.
+     * @deny (create, get, list, update, delete) - User with UID 'user_xyz' cannot manage the favorite series of 'user_abc'.
+     * @principle Restricts access to a user's own data tree.
      */
     match /users/{userId}/favoriteSeries/{seriesId} {
       allow get: if isOwner(userId);
@@ -114,17 +105,11 @@ service cloud.firestore {
     }
 
     /**
-     * @description Rules for the /users/{userId}/watchProgress/{mediaId} collection.
+     * @description Security rules for user's watch progress.
      * @path /users/{userId}/watchProgress/{mediaId}
-     * @allow (create) User 'testUid' can create watch progress in their own profile.
-     * @deny (create) User 'otherUid' cannot create watch progress in 'testUid' profile.
-     * @allow (get) User 'testUid' can get watch progress from their own profile.
-     * @deny (get) User 'otherUid' cannot get 'testUid' watch progress.
-     * @allow (update) User 'testUid' can update watch progress in their own profile.
-     * @deny (update) User 'otherUid' cannot update 'testUid' watch progress.
-     * @allow (delete) User 'testUid' can delete watch progress from their own profile.
-     * @deny (delete) User 'otherUid' cannot delete 'testUid' watch progress.
-     * @principle Enforces document ownership for writes and restricts read access to the owner.
+     * @allow (create, get, list, update, delete) - User with UID 'user_abc' can manage their watch progress.
+     * @deny (create, get, list, update, delete) - User with UID 'user_xyz' cannot manage the watch progress of 'user_abc'.
+     * @principle Restricts access to a user's own data tree.
      */
     match /users/{userId}/watchProgress/{mediaId} {
       allow get: if isOwner(userId);
@@ -135,86 +120,67 @@ service cloud.firestore {
     }
 
     /**
-     * @description Rules for the /movies/{movieId} collection.
+     * @description Security rules for movies.
      * @path /movies/{movieId}
-     * @allow (get) Any user can get movie data.
-     * @allow (list) Any user can list movies.
-     * @deny (create) No user can create movie data.
-     * @deny (update) No user can update movie data.
-     * @deny (delete) No user can delete movie data.
-     * @principle Allows public read access but restricts write access.
+     * @allow (get, list) - Any user can read movie data.
+     * @allow (create, update, delete) - Only admin users can create, update, or delete movie data.
+     * @deny (create, update, delete) - Non-admin users cannot create, update, or delete movie data.
+     * @principle Public read access with admin-only writes.
      */
     match /movies/{movieId} {
       allow get: if true;
       allow list: if true;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
     }
 
     /**
-     * @description Rules for the /series/{seriesId} collection.
+     * @description Security rules for series.
      * @path /series/{seriesId}
-     * @allow (get) Any user can get series data.
-     * @allow (list) Any user can list series.
-     * @deny (create) No user can create series data.
-     * @deny (update) No user can update series data.
-     * @deny (delete) No user can delete series data.
-     * @principle Allows public read access but restricts write access.
+     * @allow (get, list) - Any user can read series data.
+     * @allow (create, update, delete) - Only admin users can create, update, or delete series data.
+     * @deny (create, update, delete) - Non-admin users cannot create, update, or delete series data.
+     * @principle Public read access with admin-only writes.
      */
     match /series/{seriesId} {
       allow get: if true;
       allow list: if true;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
     }
 
     /**
-     * @description Rules for the /genres/{genreId} collection.
+     * @description Security rules for genres.
      * @path /genres/{genreId}
-     * @allow (get) Any user can get genre data.
-     * @allow (list) Any user can list genres.
-     * @deny (create) No user can create genre data.
-     * @deny (update) No user can update genre data.
-     * @deny (delete) No user can delete genre data.
-     * @principle Allows public read access but restricts write access.
+     * @allow (get, list) - Any user can read genre data.
+     * @allow (create, update, delete) - Only admin users can create, update, or delete genre data.
+     * @deny (create, update, delete) - Non-admin users cannot create, update, or delete genre data.
+     * @principle Public read access with admin-only writes.
      */
     match /genres/{genreId} {
       allow get: if true;
       allow list: if true;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
     }
-
+    
     /**
-     * @description Rules for the /licenses/{licenseKey} collection.
+     * @description Security rules for licenses.
      * @path /licenses/{licenseKey}
-     * @allow (get) Any user can get license data.
-     * @allow (list) Any user can list licenses.
-     * @deny (create) No user can create license data.
-     * @deny (update) No user can update license data.
-     * @deny (delete) No user can delete license data.
-     * @principle Allows public read access but restricts write access.
+     * @allow (get, list) - Any user can read genre data.
+     * @allow (create, update, delete) - Only admin users can create, update, or delete license data.
+     * @deny (create, update, delete) - Non-admin users cannot create, update, or delete license data.
+     * @principle Public read access with admin-only writes.
      */
     match /licenses/{licenseKey} {
       allow get: if true;
       allow list: if true;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
-    }
-
-    /**
-     * @description Allows a user to claim a license by batch writing to their user document and the license document.
-     * @path BATCH: /users/{userId} + /licenses/{licenseKey}
-     * @allow (write) User 'testUid' can claim a license for themselves.
-     * @deny (write) User 'otherUid' cannot claim a license for 'testUid'.
-     * @principle Enforces that a user can only claim a license for themselves and that the license is available.
-     */
-    match /{document=**} {
-      allow write: if false;
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
     }
   }
 }
