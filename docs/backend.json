@@ -1,0 +1,265 @@
+{
+  "entities": {
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user of the CineVerse application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the user."
+        },
+        "email": {
+          "type": "string",
+          "description": "Email address of the user.",
+          "format": "email"
+        },
+        "profilePictureUrl": {
+          "type": "string",
+          "description": "URL of the user's profile picture (optional).",
+          "format": "uri"
+        },
+        "favoriteMovieIds": {
+          "type": "array",
+          "description": "References to favorite Movies. (Relationship: User 1:N Movie)",
+          "items": {
+            "type": "string"
+          }
+        },
+        "favoriteSeriesIds": {
+          "type": "array",
+          "description": "References to favorite Series. (Relationship: User 1:N Series)",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "email"
+      ]
+    },
+    "Movie": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Movie",
+      "type": "object",
+      "description": "Represents a movie from the TMDB API.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the movie (TMDB ID)."
+        },
+        "title": {
+          "type": "string",
+          "description": "Title of the movie."
+        },
+        "posterPath": {
+          "type": "string",
+          "description": "Path to the movie poster image."
+        },
+        "backdropPath": {
+          "type": "string",
+          "description": "Path to the movie backdrop image."
+        },
+        "releaseYear": {
+          "type": "number",
+          "description": "The year the movie was released."
+        },
+        "tmdbScore": {
+          "type": "number",
+          "description": "The score of the movie as provided by TMDB."
+        },
+        "genreIds": {
+          "type": "array",
+          "description": "References to Genres. (Relationship: Movie N:N Genre)",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "title"
+      ]
+    },
+    "Series": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Series",
+      "type": "object",
+      "description": "Represents a series from the TMDB API.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the series (TMDB ID)."
+        },
+        "title": {
+          "type": "string",
+          "description": "Title of the series."
+        },
+        "posterPath": {
+          "type": "string",
+          "description": "Path to the series poster image."
+        },
+        "backdropPath": {
+          "type": "string",
+          "description": "Path to the series backdrop image."
+        },
+        "releaseYear": {
+          "type": "number",
+          "description": "The year the series was released."
+        },
+        "tmdbScore": {
+          "type": "number",
+          "description": "The score of the series as provided by TMDB."
+        },
+        "genreIds": {
+          "type": "array",
+          "description": "References to Genres. (Relationship: Series N:N Genre)",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "title"
+      ]
+    },
+    "Genre": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Genre",
+      "type": "object",
+      "description": "Represents a genre from TMDB.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the genre (TMDB ID)."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the genre (e.g., Action, Comedy, Drama)."
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user profiles. Each document is keyed by the user's UID. Includes the user's email, profile picture URL, and lists of favorite movie and series IDs.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user obtained from Firebase Authentication."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/favoriteMovies/{movieId}",
+        "definition": {
+          "entityName": "Movie",
+          "schema": {
+            "$ref": "#/backend/entities/Movie"
+          },
+          "description": "Stores the user's favorite movies. Each document is keyed by the movie's TMDB ID. This subcollection is owned by the user, ensuring only the user can modify their favorites. Denormalizes movie data for quick access.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user obtained from Firebase Authentication."
+            },
+            {
+              "name": "movieId",
+              "description": "The TMDB ID of the movie."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/favoriteSeries/{seriesId}",
+        "definition": {
+          "entityName": "Series",
+          "schema": {
+            "$ref": "#/backend/entities/Series"
+          },
+          "description": "Stores the user's favorite series. Each document is keyed by the series's TMDB ID. This subcollection is owned by the user, ensuring only the user can modify their favorites. Denormalizes series data for quick access.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user obtained from Firebase Authentication."
+            },
+            {
+              "name": "seriesId",
+              "description": "The TMDB ID of the series."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/movies/{movieId}",
+        "definition": {
+          "entityName": "Movie",
+          "schema": {
+            "$ref": "#/backend/entities/Movie"
+          },
+          "description": "Stores general movie information fetched from the TMDB API.  This collection is intended for caching purposes and is readable by all users but only writable by authorized services.",
+          "params": [
+            {
+              "name": "movieId",
+              "description": "The TMDB ID of the movie."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/series/{seriesId}",
+        "definition": {
+          "entityName": "Series",
+          "schema": {
+            "$ref": "#/backend/entities/Series"
+          },
+          "description": "Stores general series information fetched from the TMDB API. This collection is intended for caching purposes and is readable by all users but only writable by authorized services.",
+          "params": [
+            {
+              "name": "seriesId",
+              "description": "The TMDB ID of the series."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/genres/{genreId}",
+        "definition": {
+          "entityName": "Genre",
+          "schema": {
+            "$ref": "#/backend/entities/Genre"
+          },
+          "description": "Stores the available genres from the TMDB API. This is primarily used for lookup and categorization of movies and series.",
+          "params": [
+            {
+              "name": "genreId",
+              "description": "The TMDB ID of the genre."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure is designed to ensure security, scalability, and ease of debugging, following the principles of Authorization Independence, Clarity of Intent, and DBAC. It leverages denormalization and structural segregation to optimize security rules and query performance.\n\nAuthorization Independence is achieved by avoiding `get()` calls in security rules. User-specific data (favorites) are stored under the `/users/{userId}` path, which eliminates the need to fetch parent document data to authorize access.  Movies and Series collections are globally accessible for reading but restricted for modification, ensuring that only authorized services can update them.\n\nThe structure supports QAPs through structural segregation. Movies and series data are separated into distinct collections.  User-specific favorite movies and series are stored within the user's document. This separation enables secure list operations, preventing unauthorized access to user data or modification of movies and series data.\n\nThe design uses hierarchical paths for user-owned data (`/users/{userId}/favoriteMovies/{movieId}`) to represent the `User 1:N Movie` relationship, which provides a clear ownership model. The movie and series data is globally available, allowing for easy listing and retrieval without complex security rules.\n"
+  }
+}
