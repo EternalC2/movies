@@ -12,7 +12,8 @@ import { Spinner } from '@/components/ui/spinner';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { Terminal, Copy } from 'lucide-react';
+import { Terminal, Copy, CalendarDays } from 'lucide-react';
+import { Label } from '@/components/ui/label';
 
 
 function generateLicenseKey() {
@@ -35,6 +36,7 @@ export default function AdminPage() {
     const { toast } = useToast();
 
     const [newLicenseKey, setNewLicenseKey] = useState(generateLicenseKey());
+    const [durationDays, setDurationDays] = useState<number | undefined>(30);
     const [loading, setLoading] = useState(false);
     
     const userRef = useMemoFirebase(() =>
@@ -48,12 +50,17 @@ export default function AdminPage() {
             toast({ title: "Fout", description: "Licentiecode mag niet leeg zijn.", variant: 'destructive'});
             return;
         }
+        if (durationDays === undefined || durationDays <= 0) {
+             toast({ title: "Fout", description: "Geldigheidsduur moet een positief getal zijn.", variant: 'destructive'});
+            return;
+        }
         if (!firestore) return;
 
         setLoading(true);
         const licenseData = {
             id: newLicenseKey,
-            createdAt: serverTimestamp()
+            createdAt: serverTimestamp(),
+            durationDays: durationDays,
         };
         const licenseRef = doc(firestore, 'licenses', newLicenseKey);
 
@@ -133,16 +140,37 @@ export default function AdminPage() {
                     <CardTitle>Nieuwe Licentie Aanmaken</CardTitle>
                     <CardDescription>Genereer en voeg een nieuwe licentiecode toe aan het systeem.</CardDescription>
                 </CardHeader>
-                <CardContent className="flex gap-4">
-                    <Input 
-                        value={newLicenseKey}
-                        onChange={(e) => setNewLicenseKey(e.target.value)}
-                        placeholder="Voer een licentiecode in of genereer er een"
-                        className="font-mono"
-                    />
-                    <Button onClick={() => setNewLicenseKey(generateLicenseKey())} variant="outline">Genereer</Button>
-                    <Button onClick={handleCopy} variant="outline" size="icon"><Copy className="h-4 w-4"/></Button>
-                    <Button onClick={handleCreateLicense} disabled={loading}>{loading ? 'Bezig...' : 'Aanmaken'}</Button>
+                <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                         <div className="md:col-span-2">
+                             <Label htmlFor="licenseKey">Licentiecode</Label>
+                             <div className="flex gap-2 mt-2">
+                                <Input 
+                                    id="licenseKey"
+                                    value={newLicenseKey}
+                                    onChange={(e) => setNewLicenseKey(e.target.value)}
+                                    placeholder="Voer een licentiecode in of genereer er een"
+                                    className="font-mono"
+                                />
+                                <Button onClick={handleCopy} variant="outline" size="icon" aria-label="Kopieer licentiecode"><Copy className="h-4 w-4"/></Button>
+                            </div>
+                         </div>
+                         <div>
+                            <Label htmlFor="duration">Geldigheidsduur (dagen)</Label>
+                            <Input 
+                                id="duration"
+                                type="number"
+                                value={durationDays ?? ''}
+                                onChange={(e) => setDurationDays(e.target.value ? parseInt(e.target.value, 10) : undefined)}
+                                placeholder="bv. 30"
+                                className="mt-2"
+                            />
+                         </div>
+                    </div>
+                    <div className="flex justify-end gap-2">
+                         <Button onClick={() => setNewLicenseKey(generateLicenseKey())} variant="outline">Nieuwe Code</Button>
+                         <Button onClick={handleCreateLicense} disabled={loading}>{loading ? 'Bezig...' : 'Licentie Aanmaken'}</Button>
+                    </div>
                 </CardContent>
             </Card>
         </div>

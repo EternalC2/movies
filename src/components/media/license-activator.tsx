@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useUser, useFirestore } from '@/firebase';
-import { doc, serverTimestamp, runTransaction } from 'firebase/firestore';
+import { doc, serverTimestamp, runTransaction, Timestamp } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
@@ -53,14 +53,23 @@ export function LicenseActivator() {
         if (licenseData.claimedBy) {
           throw new Error('Licentiecode is al in gebruik.');
         }
+        
+        const durationDays = licenseData.durationDays || 30; // Default to 30 days if not set
+        const claimedAt = new Date();
+        const expiresAt = new Date(claimedAt);
+        expiresAt.setDate(expiresAt.getDate() + durationDays);
 
         // Update user profile
-        transaction.set(userRef, { licenseKey: trimmedLicenseKey }, { merge: true });
+        transaction.set(userRef, { 
+            licenseKey: trimmedLicenseKey,
+            licenseExpiresAt: Timestamp.fromDate(expiresAt),
+        }, { merge: true });
         
         // Update license document
         transaction.update(licenseRef, {
             claimedBy: user.uid,
-            claimedAt: serverTimestamp()
+            claimedAt: Timestamp.fromDate(claimedAt),
+            expiresAt: Timestamp.fromDate(expiresAt)
         });
       });
 

@@ -7,9 +7,26 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth, useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
 import { signOut } from "firebase/auth";
 import Link from "next/link";
-import { doc } from 'firebase/firestore';
+import { doc, Timestamp } from 'firebase/firestore';
 import { LicenseActivator } from '@/components/media/license-activator';
 import { Spinner } from '@/components/ui/spinner';
+import { format } from 'date-fns';
+import { nlBE } from 'date-fns/locale';
+
+function getLicenseStatus(userProfile: any) {
+    if (!userProfile?.licenseKey) {
+        return { text: 'Inactief', color: 'text-yellow-500' };
+    }
+    if (userProfile.licenseExpiresAt) {
+        const expiresDate = (userProfile.licenseExpiresAt as Timestamp).toDate();
+        if (expiresDate < new Date()) {
+            return { text: 'Verlopen', color: 'text-red-500' };
+        }
+        return { text: 'Actief', color: 'text-green-500' };
+    }
+    // Fallback for old licenses without an expiration
+    return { text: 'Actief (onbeperkt)', color: 'text-green-500' };
+}
 
 export default function AccountPage() {
     const { user, isUserLoading } = useUser();
@@ -47,6 +64,9 @@ export default function AccountPage() {
         return null; 
     }
 
+    const licenseStatus = getLicenseStatus(userProfile);
+    const hasActiveLicense = licenseStatus.text.startsWith('Actief');
+
     return (
         <div className="max-w-md mx-auto space-y-8">
             <h1 className="text-3xl font-headline font-bold">Mijn Account</h1>
@@ -56,7 +76,10 @@ export default function AccountPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <p><strong>Email:</strong> {user.email}</p>
-                    <p><strong>Licentiestatus:</strong> {userProfile?.licenseKey ? <span className="text-green-500">Actief</span> : <span className="text-yellow-500">Inactief</span>}</p>
+                    <p><strong>Licentiestatus:</strong> <span className={licenseStatus.color}>{licenseStatus.text}</span></p>
+                    {userProfile?.licenseExpiresAt && hasActiveLicense && (
+                         <p><strong>Vervalt op:</strong> {format((userProfile.licenseExpiresAt as Timestamp).toDate(), 'd MMMM yyyy', { locale: nlBE })}</p>
+                    )}
 
                     <div className="flex gap-4">
                         <Button variant="destructive" onClick={handleLogout}>Uitloggen</Button>
@@ -67,7 +90,7 @@ export default function AccountPage() {
                 </CardContent>
             </Card>
 
-            {!userProfile?.licenseKey && <LicenseActivator />}
+            {!hasActiveLicense && <LicenseActivator />}
 
         </div>
     );

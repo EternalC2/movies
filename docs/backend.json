@@ -42,6 +42,11 @@
         "licenseKey": {
           "type": "string",
           "description": "The active license key for the user."
+        },
+        "licenseExpiresAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp of when the user's license expires."
         }
       },
       "required": [
@@ -209,6 +214,10 @@
           "type": "string",
           "description": "The license key itself."
         },
+        "durationDays": {
+          "type": "number",
+          "description": "The duration of the license in days from the claim date."
+        },
         "claimedBy": {
           "type": "string",
           "description": "The UID of the user who claimed the license."
@@ -217,6 +226,11 @@
           "type": "string",
           "format": "date-time",
           "description": "Timestamp of when the license was claimed."
+        },
+        "expiresAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp of when the license expires."
         }
       },
       "required": ["id"]

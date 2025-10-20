@@ -3,7 +3,7 @@
 import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { doc } from 'firebase/firestore';
+import { doc, Timestamp } from 'firebase/firestore';
 import { Spinner } from '@/components/ui/spinner';
 import { WatchTracker } from './watch-tracker';
 import Link from 'next/link';
@@ -47,11 +47,10 @@ export function WatchPageClient({ mediaId, mediaType, seasonNumber, episodeNumbe
     }
     
     if (user && !isProfileLoading) {
-      if (userProfile?.licenseKey) {
-        setIsAuthorized(true);
-      } else {
-        setIsAuthorized(false);
-      }
+      const hasLicense = !!userProfile?.licenseKey;
+      const licenseNotExpired = userProfile?.licenseExpiresAt ? (userProfile.licenseExpiresAt as Timestamp).toDate() > new Date() : true;
+      // Allow access if license exists and is not expired (or has no expiration date for backward compatibility)
+      setIsAuthorized(hasLicense && licenseNotExpired);
     }
 
   }, [user, isUserLoading, userProfile, isProfileLoading, router]);
@@ -97,7 +96,7 @@ export function WatchPageClient({ mediaId, mediaType, seasonNumber, episodeNumbe
                 <Terminal className="h-4 w-4" />
                 <AlertTitle>Geen Toegang</AlertTitle>
                 <AlertDescription>
-                    U heeft geen actieve licentie om deze content te bekijken. Activeer uw licentie op de accountpagina.
+                    U heeft geen actieve of geldige licentie om deze content te bekijken. Activeer uw licentie op de accountpagina.
                     <Link href="/account" passHref>
                         <Button className="mt-4 w-full">Naar Accountpagina</Button>
                     </Link>
