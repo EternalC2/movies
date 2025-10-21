@@ -1,5 +1,5 @@
 import { TMDB_API_KEY, TMDB_API_URL } from './config';
-import type { PaginatedResponse, Media, MediaDetails, Season } from './types';
+import type { PaginatedResponse, Media, MediaDetails, Season, Person, PersonCredits } from './types';
 
 async function fetchFromTMDB<T>(endpoint: string, params: string = ''): Promise<T> {
   const url = `${TMDB_API_URL}/${endpoint}?api_key=${TMDB_API_KEY}&language=nl-BE&${params}`;
@@ -18,7 +18,7 @@ export async function getTrending(mediaType: 'movie' | 'tv' | 'all' = 'all', tim
 }
 
 export async function getMediaDetails(mediaType: 'movie' | 'tv', id: string): Promise<MediaDetails> {
-  const appendToResponse = mediaType === 'tv' ? 'credits,videos,seasons' : 'credits,videos';
+  const appendToResponse = mediaType === 'tv' ? 'credits,videos,seasons,recommendations' : 'credits,videos,recommendations';
   return fetchFromTMDB<MediaDetails>(`${mediaType}/${id}`, `append_to_response=${appendToResponse}`);
 }
 
@@ -39,4 +39,12 @@ export async function getMovies(category: 'popular' | 'top_rated' | 'upcoming' =
 
 export async function getSeries(category: 'popular' | 'top_rated' | 'on_the_air' = 'popular'): Promise<PaginatedResponse<Media>> {
   return fetchFromTMDB<PaginatedResponse<Media>>(`tv/${category}`);
+}
+
+export async function getPersonDetails(personId: string): Promise<Person> {
+  return fetchFromTMDB<Person>(`person/${personId}`, 'append_to_response=combined_credits');
+}
+
+export async function getPersonCredits(personId: string): Promise<PersonCredits> {
+    return fetchFromTMDB<PersonCredits>(`person/${personId}/combined_credits`);
 }

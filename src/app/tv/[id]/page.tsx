@@ -1,4 +1,3 @@
-
 import Image from "next/image";
 import Link from "next/link";
 import { getMediaDetails } from "@/lib/tmdb";
@@ -9,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { TVDetailsClient } from "./tv-details-client";
 import { FavoriteButton } from "@/components/media/favorite-button";
+import { MediaGrid } from "@/components/media/media-grid";
+import { Media } from "@/lib/types";
 
 type Props = {
   params: { id: string };
@@ -35,9 +36,11 @@ export default async function TVDetailsPage({ params: { id } }: Props) {
   const backdropUrl = series.backdrop_path
     ? `${TMDB_BACKDROP_URL}${series.backdrop_path}`
     : `https://picsum.photos/seed/bg-${series.id}/1280/720`;
+    
+  const recommendations = series.recommendations?.results.filter(r => r.poster_path) || [];
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-12">
       <div className="relative h-[30vh] md:h-[50vh] w-[100vw] left-1/2 -translate-x-1/2 top-0 -mt-8">
         <Image
           src={backdropUrl}
@@ -112,6 +115,12 @@ export default async function TVDetailsPage({ params: { id } }: Props) {
 
       <TVDetailsClient series={series} />
       
+      {recommendations.length > 0 && (
+        <section>
+          <h2 className="text-3xl font-headline font-bold mb-6">Aanbevelingen</h2>
+          <MediaGrid media={recommendations as Media[]} mediaType="tv" />
+        </section>
+      )}
     </div>
   );
 }

@@ -54,6 +54,7 @@ export interface MediaDetails extends Omit<Media, 'genre_ids' | 'name'> {
   credits?: {
     cast: CastMember[];
   };
+  recommendations?: PaginatedResponse<Media>;
   // Movie specific
   runtime?: number;
   title: string;
@@ -65,6 +66,24 @@ export interface MediaDetails extends Omit<Media, 'genre_ids' | 'name'> {
   first_air_date?: string;
   seasons?: Season[];
 }
+
+export interface Person {
+    id: number;
+    name: string;
+    biography: string;
+    profile_path: string | null;
+    birthday: string | null;
+    place_of_birth: string | null;
+    known_for_department: string;
+    combined_credits: {
+        cast: (Media & { character: string })[];
+    }
+}
+
+export interface PersonCredits {
+    cast: (Media & { character: string })[];
+}
+
 
 export interface WatchProgress {
   id: string;

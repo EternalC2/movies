@@ -1,4 +1,3 @@
-
 'use client';
 
 import Image from "next/image";
@@ -9,7 +8,7 @@ import { Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useEffect, useState, use } from "react";
+import { useEffect, useState } from "react";
 import type { MediaDetails, Season } from "@/lib/types";
 
 type Props = {
@@ -90,7 +89,7 @@ export function TVDetailsClient({ series }: Props) {
           <h2 className="text-3xl font-headline font-bold mb-6">Cast</h2>
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7 gap-4">
             {series.credits.cast.slice(0, 14).map((member) => (
-              <div key={member.id} className="text-center group">
+              <Link href={`/person/${member.id}`} key={member.id} className="text-center group block">
                 <Card className="overflow-hidden shadow-lg border-transparent bg-card aspect-[2/3] relative transition-all duration-300 group-hover:scale-105">
                     <Image
                       src={member.profile_path ? `${TMDB_IMAGE_URL}${member.profile_path}` : `https://picsum.photos/seed/cast-${member.id}/200/300`}
@@ -103,7 +102,7 @@ export function TVDetailsClient({ series }: Props) {
                 </Card>
                 <h3 className="font-semibold mt-2 text-sm truncate">{member.name}</h3>
                 <p className="text-xs text-muted-foreground truncate">{member.character}</p>
-              </div>
+              </Link>
             ))}
           </div>
         </section>

@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { FavoriteButton } from "@/components/media/favorite-button";
+import { MediaGrid } from "@/components/media/media-grid";
+import { Media } from "@/lib/types";
 
 type Props = {
   params: { id: string };
@@ -27,9 +29,12 @@ export default async function MovieDetailsPage({ params }: Props) {
   const backdropUrl = movie.backdrop_path
     ? `${TMDB_BACKDROP_URL}${movie.backdrop_path}`
     : `https://picsum.photos/seed/bg-${movie.id}/1280/720`;
+    
+  const recommendations = movie.recommendations?.results.filter(r => r.poster_path) || [];
+
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-12">
       <div className="relative h-[30vh] md:h-[50vh] w-[100vw] left-1/2 -translate-x-1/2 top-0 -mt-8">
         <Image
           src={backdropUrl}
@@ -108,7 +113,7 @@ export default async function MovieDetailsPage({ params }: Props) {
           <h2 className="text-3xl font-headline font-bold mb-6">Cast</h2>
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7 gap-4">
             {movie.credits.cast.slice(0, 14).map((member) => (
-              <div key={member.id} className="text-center group">
+              <Link key={member.id} href={`/person/${member.id}`} className="text-center group block">
                  <Card className="overflow-hidden shadow-lg border-transparent bg-card aspect-[2/3] relative transition-all duration-300 group-hover:scale-105">
                       <Image
                         src={member.profile_path ? `${TMDB_IMAGE_URL}${member.profile_path}` : `https://picsum.photos/seed/cast-${member.id}/200/300`}
@@ -121,9 +126,16 @@ export default async function MovieDetailsPage({ params }: Props) {
                 </Card>
                 <h3 className="font-semibold mt-2 text-sm truncate">{member.name}</h3>
                 <p className="text-xs text-muted-foreground truncate">{member.character}</p>
-              </div>
+              </Link>
             ))}
           </div>
+        </section>
+      )}
+
+      {recommendations.length > 0 && (
+        <section>
+          <h2 className="text-3xl font-headline font-bold mb-6">Aanbevelingen</h2>
+          <MediaGrid media={recommendations as Media[]} mediaType="movie" />
         </section>
       )}
     </div>
