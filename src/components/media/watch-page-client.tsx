@@ -80,15 +80,14 @@ export function WatchPageClient({ mediaId, mediaType, seasonNumber, episodeNumbe
     let url: string;
 
     if (server.id === '2embed') {
-      if (mediaType === 'movie') {
-        url = `${server.url}/embed/${mediaId}`;
-      } else { // tv
-        const s = seasonNumber || '1';
-        const e = episodeNumber || '1';
-        url = `${server.url}/embedtv/${mediaId}&s=${s}&e=${e}`;
-      }
+        if (mediaType === 'movie') {
+            url = `${server.url}/embed/${mediaId}`;
+        } else { // tv
+            const s = seasonNumber || '1';
+            const e = episodeNumber || '1';
+            url = `${server.url}/embedtv/${mediaId}&s=${s}&e=${e}`;
+        }
     } else if (server.id === 'godrive') {
-        // This server requires the IMDb ID, which we get from the mediaDetails.
         const imdbId = mediaDetails?.external_ids?.imdb_id;
         if (imdbId) {
             url = `${server.url}?imdb=${imdbId}`;
@@ -98,12 +97,9 @@ export function WatchPageClient({ mediaId, mediaType, seasonNumber, episodeNumbe
                 url += `&s=${s}&e=${e}`;
             }
         } else {
-            // If we don't have the IMDb ID yet, we can't build the URL.
-            // We'll show a loading or error state in the iframe area.
             url = ''; 
         }
-    } else {
-      // Default behavior for vidsrc and potentially others
+    } else { // vidsrc
       url = `${server.url}/${mediaType}/${mediaId}`;
       if (mediaType === 'tv') {
           const s = seasonNumber || '1';
