@@ -18,7 +18,7 @@ export async function getTrending(mediaType: 'movie' | 'tv' | 'all' = 'all', tim
 }
 
 export async function getMediaDetails(mediaType: 'movie' | 'tv', id: string): Promise<MediaDetails> {
-  const appendToResponse = mediaType === 'tv' ? 'credits,videos,seasons,recommendations' : 'credits,videos,recommendations';
+  const appendToResponse = 'credits,videos,recommendations,external_ids';
   return fetchFromTMDB<MediaDetails>(`${mediaType}/${id}`, `append_to_response=${appendToResponse}`);
 }
 

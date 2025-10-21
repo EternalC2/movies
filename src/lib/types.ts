@@ -49,12 +49,20 @@ export interface Episode {
     still_path: string | null;
 }
 
+export interface ExternalIds {
+    imdb_id: string | null;
+    facebook_id: string | null;
+    instagram_id: string | null;
+    twitter_id: string | null;
+}
+
 export interface MediaDetails extends Omit<Media, 'genre_ids' | 'name'> {
   genres: Genre[];
   credits?: {
     cast: CastMember[];
   };
   recommendations?: PaginatedResponse<Media>;
+  external_ids?: ExternalIds;
   // Movie specific
   runtime?: number;
   title: string;
