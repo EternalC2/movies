@@ -1,5 +1,11 @@
-# Firebase Studio
+UBUNTU
 
-This is a NextJS starter in Firebase Studio.
+cd /var/www/eternalmovies
 
-To get started, take a look at src/app/page.tsx.
+git pull
+
+npm install
+
+npm run build
+
+pm2 restart eternalmovies
