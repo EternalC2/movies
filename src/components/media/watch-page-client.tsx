@@ -15,7 +15,8 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 const servers = [
   { id: 'vidsrc', name: 'Server 1', url: 'https://vidsrc.to/embed' },
-  { id: '2embed', name: 'Server 2', url: 'https://www.2embed.cc' }
+  { id: '2embed', name: 'Server 2', url: 'https://www.2embed.cc' },
+  { id: 'godrive', name: 'Server 3', url: 'https://database.gdriveplayer.us/player.php' }
 ];
 
 interface WatchPageClientProps {
@@ -69,6 +70,13 @@ export function WatchPageClient({ mediaId, mediaType, seasonNumber, episodeNumbe
         const e = episodeNumber || '1';
         url = `${server.url}/embedtv/${mediaId}&s=${s}&e=${e}`;
       }
+    } else if (server.id === 'godrive') {
+        url = `${server.url}?tmdb=${mediaId}`;
+        if (mediaType === 'tv') {
+            const s = seasonNumber || '1';
+            const e = episodeNumber || '1';
+            url += `&season=${s}&episode=${e}`;
+        }
     } else {
       // Default behavior for vidsrc and potentially others
       url = `${server.url}/${mediaType}/${mediaId}`;
