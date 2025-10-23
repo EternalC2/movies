@@ -47,8 +47,8 @@ export default async function MovieDetailsPage({ params }: Props) {
         <div className="absolute inset-0 bg-gradient-to-t from-background via-background/80 to-transparent" />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-8 md:gap-12 -mt-32 md:-mt-48 relative z-10">
-        <div className="md:col-span-1 lg:col-span-1">
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-8 md:gap-12 -mt-16 md:-mt-48 relative z-10">
+        <div className="md:col-span-4 lg:col-span-3 mx-auto md:mx-0 w-2/3 md:w-full">
           <Card className="overflow-hidden shadow-2xl shadow-black/50 aspect-[2/3] relative">
               <Image
                 src={posterUrl}
@@ -60,34 +60,36 @@ export default async function MovieDetailsPage({ params }: Props) {
               />
           </Card>
         </div>
-        <div className="md:col-span-2 lg:col-span-3 space-y-6">
-          <h1 className="text-4xl md:text-5xl font-headline font-bold">{movie.title}</h1>
+        <div className="md:col-span-8 lg:col-span-9 space-y-6 flex flex-col justify-end">
+          <div>
+            <h1 className="text-4xl md:text-5xl font-headline font-bold">{movie.title}</h1>
 
-          <div className="flex flex-wrap items-center gap-4 text-muted-foreground">
-            <div className="flex items-center gap-2">
-              <Star className="h-5 w-5 text-yellow-400 fill-current" />
-              <span className="font-bold text-lg text-foreground">{score}</span>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-4 text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <Star className="h-5 w-5 text-yellow-400 fill-current" />
+                <span className="font-bold text-lg text-foreground">{score}</span>
+              </div>
+              <span className="hidden md:inline">|</span>
+              <div className="flex items-center gap-2">
+                <Calendar className="h-5 w-5" />
+                <span>{year}</span>
+              </div>
+              {movie.runtime && (
+                <>
+                  <span className="hidden md:inline">|</span>
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-5 w-5" />
+                    <span>{movie.runtime} min</span>
+                  </div>
+                </>
+              )}
             </div>
-            <span className="hidden md:inline">|</span>
-            <div className="flex items-center gap-2">
-              <Calendar className="h-5 w-5" />
-              <span>{year}</span>
+            
+            <div className="flex flex-wrap gap-2 mt-4">
+              {movie.genres.map((genre) => (
+                <Badge key={genre.id} variant="secondary">{genre.name}</Badge>
+              ))}
             </div>
-            {movie.runtime && (
-              <>
-                <span className="hidden md:inline">|</span>
-                <div className="flex items-center gap-2">
-                  <Clock className="h-5 w-5" />
-                  <span>{movie.runtime} min</span>
-                </div>
-              </>
-            )}
-          </div>
-          
-          <div className="flex flex-wrap gap-2">
-            {movie.genres.map((genre) => (
-              <Badge key={genre.id} variant="secondary">{genre.name}</Badge>
-            ))}
           </div>
 
           <div>
